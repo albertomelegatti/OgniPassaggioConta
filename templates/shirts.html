@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+
+{% block title %}Maglie {{ sport|title }} - Ogni Passaggio Conta{% endblock %}
+
+{% block content %}
+    <section class="shirts-hero">
+        <div class="container">
+            <div class="hero-content">
+                <a href="{{ url_for('sports') }}" class="back-link">← Torna agli sport</a>
+                <h1>Maglie {{ sport|title }}</h1>
+                <p>{{ shirts|length }} maglie disponibili</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="shirts-section">
+        <div class="container">
+            <div class="shirts-grid">
+                {% for shirt in shirts %}
+                <div class="shirt-card">
+                    <div class="shirt-image-wrapper">
+                        <img src="https://via.placeholder.com/300x400?text=Maglia+{{ shirt.athlete|replace(' ', '+') }}" alt="{{ shirt.athlete }}" class="shirt-image">
+                        <button class="like-btn" data-id="{{ shirt.id }}">
+                            <span class="heart">♡</span>
+                            <span class="like-count">0</span>
+                        </button>
+                    </div>
+                    <div class="shirt-info">
+                        <h3 class="shirt-title">{{ shirt.athlete }}</h3>
+                        <div class="shirt-meta">
+                            <span class="meta-item">{{ shirt.team }}</span>
+                            <span class="meta-separator">•</span>
+                            <span class="meta-item">{{ shirt.year }}</span>
+                        </div>
+                        {% if shirt.has_auction %}
+                        <div class="shirt-price">
+                            <span class="price-main">€ {{ "%.2f"|format(shirt.current_price) }}</span>
+                            <span class="price-tax">€ {{ "%.2f"|format(shirt.current_price * 1.06) }} incl.</span>
+                        </div>
+                        {% else %}
+                        <div class="shirt-price">
+                            <span class="price-main">Prezzo base: € {{ "%.2f"|format(shirt.base_price) }}</span>
+                            <span class="price-status">Non ancora in asta</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            {% if not shirts %}
+            <div class="no-shirts">
+                <p>Nessuna maglia disponibile.</p>
+            </div>
+            {% endif %}
+        </div>
+    </section>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.shirts-hero {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 40px 20px;
+    margin-bottom: 40px;
+}
+
+.hero-content {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.back-link {
+    display: inline-block;
+    color: rgba(255, 255, 255, 0.9);
+    text-decoration: none;
+    font-weight: 600;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+    font-size: 0.95rem;
+}
+
+.back-link:hover {
+    color: white;
+    transform: translateX(-3px);
+}
+
+.shirts-hero h1 {
+    font-size: 2.2rem;
+    margin: 10px 0;
+}
+
+.shirts-hero p {
+    font-size: 1rem;
+    opacity: 0.9;
+    margin: 0;
+}
+
+.shirts-section {
+    padding: 20px;
+    background: #fafafa;
+    min-height: 60vh;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.shirts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 40px;
+}
+
+.shirt-card {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+}
+
+.shirt-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.shirt-image-wrapper {
+    position: relative;
+    width: 100%;
+    padding-bottom: 133%;
+    overflow: hidden;
+    background: #f0f0f0;
+}
+
+.shirt-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.like-btn {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    background: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transition: all 0.2s ease;
+    flex-direction: column;
+    font-size: 0.75rem;
+    color: #666;
+    font-weight: 600;
+    padding: 0;
+}
+
+.like-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.like-btn .heart {
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+.like-btn .like-count {
+    font-size: 0.65rem;
+}
+
+.shirt-info {
+    padding: 8px;
+}
+
+.shirt-title {
+    margin: 0 0 4px 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #222;
+    line-height: 1.3;
+    min-height: 2.6em;
+}
+
+.shirt-meta {
+    font-size: 0.75rem;
+    color: #999;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+}
+
+.meta-item {
+    display: inline;
+}
+
+.meta-separator {
+    margin: 0 6px;
+}
+
+.shirt-condition {
+    font-size: 0.8rem;
+    color: #666;
+    margin: 4px 0 8px 0;
+}
+
+.shirt-price {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.price-main {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #222;
+}
+
+.price-tax {
+    font-size: 0.75rem;
+    color: #999;
+}
+
+.price-status {
+    font-size: 0.75rem;
+    color: #999;
+    font-style: italic;
+}
+
+.no-shirts {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 20px;
+    color: #999;
+    font-size: 1.1rem;
+}
+
+@media (max-width: 768px) {
+    .shirts-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 8px;
+    }
+
+    .shirts-hero h1 {
+        font-size: 1.8rem;
+    }
+
+    .shirt-title {
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .shirts-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+</style>
+{% endblock %}

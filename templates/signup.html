@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Sign Up - Ogni Passaggio Conta{% endblock %}
+
+{% block content %}
+    <section class="auth-section">
+        <div class="auth-container">
+            <div class="auth-box">
+                <h2>Iscriviti</h2>
+                <p class="auth-subtitle">Benvenuto in Ogni Passaggio Conta! 🎽</p>
+                
+                <form class="auth-form">
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" name="username" required placeholder="il_tuo_username">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" required placeholder="tua@email.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" required placeholder="••••••••">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password_confirm">Conferma Password</label>
+                        <input type="password" id="password_confirm" name="password_confirm" required placeholder="••••••••">
+                    </div>
+                    
+                    <button type="submit" class="auth-button">Iscriviti</button>
+                </form>
+                
+                <p class="auth-footer">
+                    Hai già un account? <a href="{{ url_for('login') }}">Accedi qui</a>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <style>
+        .auth-section {
+            min-height: calc(100vh - 200px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f9fafb;
+            padding: 40px 20px;
+        }
+
+        .auth-container {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .auth-box {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 2px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        .auth-box h2 {
+            margin: 0 0 10px 0;
+            font-size: 1.8rem;
+            color: #222;
+        }
+
+        .auth-subtitle {
+            color: #666;
+            margin: 0 0 30px 0;
+            font-size: 0.95rem;
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.95rem;
+        }
+
+        .form-group input {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+
+        .auth-button {
+            padding: 12px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .auth-button:hover {
+            background: #059669;
+        }
+
+        .auth-footer {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .auth-footer a {
+            color: #10b981;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .auth-footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 480px) {
+            .auth-box {
+                padding: 30px 20px;
+            }
+
+            .auth-box h2 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+{% endblock %}

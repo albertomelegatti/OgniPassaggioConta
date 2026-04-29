@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - Ogni Passaggio Conta{% endblock %}
+
+{% block content %}
+    <section class="admin-section">
+        <div class="admin-container">
+            <div class="admin-header">
+                <h1>Admin Dashboard</h1>
+                <p>Gestisci maglie, aste e utenti</p>
+            </div>
+
+            <div class="admin-grid">
+                <div class="admin-card">
+                    <div class="card-icon">👕</div>
+                    <h3>Maglie</h3>
+                    <p>Gestisci il catalogo</p>
+                    <a href="#" class="admin-link">Vai →</a>
+                </div>
+
+                <div class="admin-card">
+                    <div class="card-icon">🎯</div>
+                    <h3>Aste</h3>
+                    <p>Crea e monitora le aste</p>
+                    <a href="#" class="admin-link">Vai →</a>
+                </div>
+
+                <div class="admin-card">
+                    <div class="card-icon">👤</div>
+                    <h3>Utenti</h3>
+                    <p>Gestisci gli utenti</p>
+                    <a href="#" class="admin-link">Vai →</a>
+                </div>
+
+                <div class="admin-card">
+                    <div class="card-icon">📊</div>
+                    <h3>Statistiche</h3>
+                    <p>Visualizza i dati</p>
+                    <a href="#" class="admin-link">Vai →</a>
+                </div>
+            </div>
+
+            <div class="admin-stats">
+                <h2>Statistiche Rapide</h2>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-label">Maglie Totali</div>
+                        <div class="stat-value">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Aste Attive</div>
+                        <div class="stat-value">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Utenti</div>
+                        <div class="stat-value">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Offerte Totali</div>
+                        <div class="stat-value">--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <style>
+        .admin-section {
+            padding: 40px 20px;
+            background: #f9fafb;
+            min-height: calc(100vh - 200px);
+        }
+
+        .admin-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .admin-header {
+            margin-bottom: 50px;
+        }
+
+        .admin-header h1 {
+            font-size: 2.5rem;
+            color: #222;
+            margin-bottom: 10px;
+        }
+
+        .admin-header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .admin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+            margin-bottom: 60px;
+        }
+
+        .admin-card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            text-align: center;
+        }
+
+        .admin-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .card-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .admin-card h3 {
+            font-size: 1.3rem;
+            color: #222;
+            margin-bottom: 8px;
+        }
+
+        .admin-card p {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+        }
+
+        .admin-link {
+            display: inline-block;
+            color: #f97316;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s;
+        }
+
+        .admin-link:hover {
+            color: #ea580c;
+        }
+
+        .admin-stats {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .admin-stats h2 {
+            font-size: 1.5rem;
+            color: #222;
+            margin-bottom: 30px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-box {
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 8px;
+            border-left: 4px solid #f97316;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #222;
+        }
+
+        @media (max-width: 768px) {
+            .admin-header h1 {
+                font-size: 2rem;
+            }
+
+            .admin-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .admin-stats {
+                padding: 20px;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+{% endblock %}

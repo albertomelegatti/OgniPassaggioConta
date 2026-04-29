@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Ogni Passaggio Conta - Aste di Magliette{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1 class="logo">🏆 Ogni Passaggio Conta</h1>
+            <button class="menu-toggle" id="menuToggle">☰</button>
+            <ul class="nav-links" id="navLinks">
+                <li><a href="/">Home</a></li>
+                <li><a href="/sports">Sport</a></li>
+                <li><a href="#come-funziona">Come Funziona</a></li>
+                <li><a href="#contact">Contatti</a></li>
+                <li class="nav-divider"></li>
+                <li><a href="{{ url_for('login') }}" class="nav-auth">Login</a></li>
+                <li><a href="{{ url_for('admin_dashboard') }}" class="nav-admin">Admin</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    {% block content %}{% endblock %}
+
+    <footer>
+        <div class="container">
+            <p>Fatto con amore dalla crew locale 🖤</p>
+            <p style="font-size: 0.8rem; margin-top: 8px; opacity: 0.8;">P.IVA: xxx | © 2026 Ogni Passaggio Conta</p>
+        </div>
+    </footer>
+
+    <script>
+        // Mobile menu toggle
+        const menuToggle = document.getElementById('menuToggle');
+        const navLinks = document.getElementById('navLinks');
+
+        menuToggle.addEventListener('click', () => {
+            navLinks.classList.toggle('active');
+        });
+
+        // Close menu when a link is clicked
+        navLinks.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                navLinks.classList.remove('active');
+            });
+        });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

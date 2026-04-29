@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Scegli lo Sport - Ogni Passaggio Conta{% endblock %}
+
+{% block content %}
+    <section class="sports-hero">
+        <div class="container">
+            <h1>Scegli il Tuo Sport</h1>
+            <p>Seleziona lo sport e scopri le magliette in asta</p>
+        </div>
+    </section>
+
+    <section class="sports-grid">
+        <div class="container">
+            <div class="grid">
+                <a href="{{ url_for('shirts', sport='calcio') }}" class="sport-card calcio">
+                    <div class="sport-icon">⚽</div>
+                    <h2>Calcio</h2>
+                </a>
+
+                <a href="{{ url_for('shirts', sport='pallavolo') }}" class="sport-card pallavolo">
+                    <div class="sport-icon">🏐</div>
+                    <h2>Pallavolo</h2>
+                </a>
+
+                <a href="{{ url_for('shirts', sport='basket') }}" class="sport-card basket">
+                    <div class="sport-icon">🏀</div>
+                    <h2>Basket</h2>
+                </a>
+
+                <a href="{{ url_for('shirts', sport='ciclismo') }}" class="sport-card ciclismo">
+                    <div class="sport-icon">🚴</div>
+                    <h2>Ciclismo</h2>
+                </a>
+
+                <a href="{{ url_for('shirts', sport='sci') }}" class="sport-card sci">
+                    <div class="sport-icon">⛷️</div>
+                    <h2>Sci</h2>
+                </a>
+            </div>
+        </div>
+    </section>
+
+{% endblock %}
