@@ -21,6 +21,7 @@
             <div class="nav-auth-buttons">
                 {% if session.get('user_id') %}
                     <span class="user-greeting">👤 {{ session.get('user_id') }}</span>
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn-admin">⚙️ Admin</a>
                     <a href="{{ url_for('logout') }}" class="btn-logout">Logout</a>
                 {% else %}
                     <a href="{{ url_for('login') }}" class="btn-login">Accedi</a>
