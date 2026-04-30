@@ -1,13 +1,16 @@
-from flask import Flask, render_template, request
+import os
+import re
+from flask import Flask, render_template, request, redirect, url_for, flash
 from flask.cli import load_dotenv
 from psycopg2.extras import RealDictCursor
 from db import get_connection, release_connection, init_pool
-import os
+from werkzeug.security import generate_password_hash, check_password_hash
 
 load_dotenv()
 init_pool()
 
 app = Flask(__name__)
+app.secret_key = os.getenv('SECRET_KEY')
 
 
 
@@ -23,9 +26,7 @@ def sports():
 
 @app.route('/shirts/<sport>')
 def shirts(sport):
-    
-    print(f"Fetching shirts for sport: {sport}")
-    
+        
     conn = get_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     
@@ -41,7 +42,6 @@ def shirts(sport):
                 ''',(sport.lower(),))
         
         shirts_raw = cur.fetchall()
-        print(shirts_raw)
         
         for shirt in shirts_raw:
             shirts.append({
@@ -57,7 +57,6 @@ def shirts(sport):
                 'has_auction': shirt['id'] is not None
             })
             
-        print(shirts)
         
     except Exception as e:
         print(f"Error fetching shirts: {e}")
@@ -81,8 +80,72 @@ def login():
     return render_template('login.html')
 
 
-@app.route('/signup')
+
+
+@app.route('/signup', methods=['GET', 'POST'])
 def signup():
+    
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+        password_confirm = request.form.get('password_confirm', '')
+        
+        errors = []
+        
+        if not username or len(username) < 3:
+            errors.append("Username deve essere almeno 3 caratteri")
+        
+        if not email or not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
+            errors.append("Email non valida")
+        
+        if not password or len(password) < 8:
+            errors.append("Password deve essere almeno 8 caratteri")
+        
+        if password != password_confirm:
+            errors.append("Le password non corrispondono")
+        
+        if errors:
+            return render_template('signup.html', error=' | '.join(errors))
+        
+        
+        conn = None
+        cur = None
+        try:
+            conn = get_connection()
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            
+            # Controlla se l'utente esiste già
+            cur.execute('SELECT 1 FROM utente WHERE email = %s OR username = %s', (email, username))
+            if cur.fetchone():
+                return render_template('signup.html', error='Email o username già in uso')
+                
+            
+            # Hash della password
+            password_hash = generate_password_hash(password)
+            
+            # Inserisci il nuovo utente
+            cur.execute('''
+                INSERT INTO utente (username, hash_password, email)
+                VALUES (%s, %s, %s)
+            ''', (username, password_hash, email))
+            
+            conn.commit()
+            
+            
+            flash('Registrazione avvenuta con successo! Puoi ora effettuare il login.', 'success')
+            return redirect(url_for('login'))
+            
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            print(f"Error during signup: {e}")
+            flash('Errore durante la registrazione. Riprova più tardi.', 'error')
+            return render_template('signup.html')
+        
+        finally:
+            release_connection(conn, cur)
+    
     return render_template('signup.html')
 
 

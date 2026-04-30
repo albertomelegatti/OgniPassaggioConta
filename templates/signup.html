@@ -9,7 +9,15 @@
                 <h2>Iscriviti</h2>
                 <p class="auth-subtitle">Benvenuto in Ogni Passaggio Conta! 🎽</p>
                 
-                <form class="auth-form">
+                {% if error %}
+                    <div class="error-message">{{ error }}</div>
+                {% endif %}
+                
+                {% if success %}
+                    <div class="success-message">{{ success }}</div>
+                {% endif %}
+                
+                <form class="auth-form" method="POST" action="{{ url_for('signup') }}">
                     <div class="form-group">
                         <label for="username">Username</label>
                         <input type="text" id="username" name="username" required placeholder="il_tuo_username">
@@ -137,6 +145,26 @@
 
         .auth-footer a:hover {
             text-decoration: underline;
+        }
+
+        .error-message {
+            background: #fee2e2;
+            border: 1px solid #fca5a5;
+            color: #991b1b;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        .success-message {
+            background: #dcfce7;
+            border: 1px solid #86efac;
+            color: #166534;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
         }
 
         @media (max-width: 480px) {

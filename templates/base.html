@@ -9,7 +9,7 @@
 </head>
 <body>
     <nav class="navbar">
-        <div class="container">
+        <div class="navbar-container">
             <h1 class="logo">🏆 Ogni Passaggio Conta</h1>
             <button class="menu-toggle" id="menuToggle">☰</button>
             <ul class="nav-links" id="navLinks">
@@ -17,14 +17,31 @@
                 <li><a href="/sports">Sport</a></li>
                 <li><a href="#come-funziona">Come Funziona</a></li>
                 <li><a href="#contact">Contatti</a></li>
-                <li class="nav-divider"></li>
-                <li><a href="{{ url_for('login') }}" class="nav-auth">Login</a></li>
-                <li><a href="{{ url_for('admin_dashboard') }}" class="nav-admin">Admin</a></li>
             </ul>
+            <div class="nav-auth-buttons">
+                <a href="{{ url_for('login') }}" class="btn-login">Accedi</a>
+                <a href="{{ url_for('admin_dashboard') }}" class="btn-admin">Admin</a>
+            </div>
         </div>
     </nav>
 
-    {% block content %}{% endblock %}
+    <div class="content-wrapper">
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="container flash-messages-container">
+              {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                  {{ message }}
+                  <button type="button" class="alert-close" data-dismiss="alert" aria-label="Close">&times;</button>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
 
     <footer>
         <div class="container">
@@ -37,15 +54,26 @@
         // Mobile menu toggle
         const menuToggle = document.getElementById('menuToggle');
         const navLinks = document.getElementById('navLinks');
+        const navAuthButtons = document.querySelector('.nav-auth-buttons');
 
         menuToggle.addEventListener('click', () => {
             navLinks.classList.toggle('active');
+            navAuthButtons.classList.toggle('active');
         });
 
         // Close menu when a link is clicked
         navLinks.querySelectorAll('a').forEach(link => {
             link.addEventListener('click', () => {
                 navLinks.classList.remove('active');
+                navAuthButtons.classList.remove('active');
+            });
+        });
+
+        // Close menu when an auth button is clicked
+        navAuthButtons.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                navLinks.classList.remove('active');
+                navAuthButtons.classList.remove('active');
             });
         });
     </script>
