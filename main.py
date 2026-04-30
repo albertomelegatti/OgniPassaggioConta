@@ -1,7 +1,9 @@
 import os
 import re
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask.cli import load_dotenv
+from flask_session import Session
+from flask_sqlalchemy import SQLAlchemy
 from psycopg2.extras import RealDictCursor
 from db import get_connection, release_connection, init_pool
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -10,7 +12,39 @@ load_dotenv()
 init_pool()
 
 app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY')
+app.secret_key = os.getenv("SECRET_KEY", "chiave_segreta_default_per_sviluppo")
+
+# Determina se siamo in produzione (Render ha RENDER_DEPLOYMENT_ID)
+is_production = bool(os.getenv("RENDER_DEPLOYMENT_ID"))
+
+# Converte postgres:// in postgresql:// (per Supabase)
+db_url = os.getenv("DATABASE_URL")
+if db_url and db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_size': 20,
+    'pool_recycle': 3600,
+    'pool_pre_ping': True,
+}
+
+db = SQLAlchemy(app)
+
+app.config['SESSION_TYPE'] = 'sqlalchemy'
+app.config['SESSION_SQLALCHEMY'] = db
+app.config['SESSION_PERMANENT'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = 3600 * 24 * 365
+app.config['SESSION_COOKIE_SECURE'] = is_production  # True solo in produzione (HTTPS)
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+Session(app)
+
+# Crea la tabella delle sessioni al primo avvio
+with app.app_context():
+    db.create_all()
 
 
 
@@ -75,9 +109,66 @@ def shirts(sport):
 
 
 
-@app.route('/login')
+@app.route('/login', methods=['GET', 'POST'])
 def login():
+    
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        
+        conn = None
+        cur = None
+        try:
+            conn = get_connection()
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            
+            cur.execute('''
+                SELECT username, hash_password, email 
+                FROM utente 
+                WHERE username = %s
+            ''', (username,))
+            
+            user = cur.fetchone()
+            
+            if user and check_password_hash(user['hash_password'], password):
+                # Crea la sessione
+                session['user_id'] = user['username']
+                session['email'] = user['email']
+                session.permanent = True
+                
+                flash('Login avvenuto con successo!', 'success')
+                return redirect(url_for('landing'))
+            else:
+                return render_template('login.html', error='Credenziali non valide. Riprova.')
+        
+        except Exception as e:
+            print(f"Error during login: {e}")
+            return render_template('login.html', error='Errore durante il login. Riprova più tardi.')
+            
+        finally:
+            release_connection(conn, cur)
+    
     return render_template('login.html')
+
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('Sei stato disconnesso.', 'info')
+    return redirect(url_for('landing'))
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

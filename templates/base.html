@@ -19,8 +19,13 @@
                 <li><a href="#contact">Contatti</a></li>
             </ul>
             <div class="nav-auth-buttons">
-                <a href="{{ url_for('login') }}" class="btn-login">Accedi</a>
-                <a href="{{ url_for('admin_dashboard') }}" class="btn-admin">Admin</a>
+                {% if session.get('user_id') %}
+                    <span class="user-greeting">👤 {{ session.get('user_id') }}</span>
+                    <a href="{{ url_for('logout') }}" class="btn-logout">Logout</a>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="btn-login">Accedi</a>
+                    <a href="{{ url_for('signup') }}" class="btn-signup">Iscriviti</a>
+                {% endif %}
             </div>
         </div>
     </nav>
