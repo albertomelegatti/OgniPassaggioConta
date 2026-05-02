@@ -1,0 +1,671 @@
+{% extends "base.html" %}
+
+{% block title %}Gestione Maglie - Admin{% endblock %}
+
+{% block content %}
+    <section class="admin-maglie-section">
+        <div class="admin-container">
+            <div class="admin-header">
+                <div>
+                    <h1>Gestione Maglie</h1>
+                    <p>Aggiungi, modifica o elimina maglie dal catalogo</p>
+                </div>
+                <button id="toggleFormBtn" class="btn-toggle-form">+ Aggiungi Maglia</button>
+            </div>
+
+            <!-- FORM AGGIUNTA MAGLIA -->
+            <div id="formSection" class="form-section form-section-hidden">
+                <h2>📝 Aggiungi Nuova Maglia</h2>
+                <form method="POST" enctype="multipart/form-data" class="maglia-form">
+                    <div class="form-group">
+                        <label for="titolo">Titolo Maglia *</label>
+                        <input type="text" id="titolo" name="titolo" required placeholder="Es. Maglia AC Milan 1999" maxlength="100">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="descrizione">Descrizione *</label>
+                        <textarea id="descrizione" name="descrizione" required rows="4" placeholder="Descrivi la maglia (colore, condizioni, storia...)"></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="prezzo_base">Prezzo Base (€) *</label>
+                            <input type="number" id="prezzo_base" name="prezzo_base" required step="0.01" min="0" placeholder="Es. 50.00">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="sport">Sport *</label>
+                            <select id="sport" name="sport" required>
+                                <option value="">Seleziona uno sport</option>
+                                <option value="calcio">⚽ Calcio</option>
+                                <option value="pallavolo">🏐 Pallavolo</option>
+                                <option value="basket">🏀 Basket</option>
+                                <option value="ciclismo">🚴 Ciclismo</option>
+                                <option value="sci">⛷️ Sci</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="foto">Foto della Maglia (max 2 immagini)</label>
+                        <div class="file-upload-area">
+                            <input type="file" id="foto" name="foto" multiple accept="image/*" class="file-input">
+                            <div class="file-upload-label">
+                                <span>📸 Clicca per aggiungere foto o trascinale qui</span>
+                                <small>Formati supportati: PNG, JPG, JPEG, GIF, WebP (Max 16MB totali, 2 foto)</small>
+                            </div>
+                            <div id="preview-container" class="preview-container"></div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-submit">✅ Aggiungi Maglia</button>
+                </form>
+            </div>
+
+            <!-- LISTA MAGLIE ESISTENTI -->
+            <div class="maglie-list-section">
+                <h2>👕 Maglie nel Catalogo</h2>
+                
+                {% if maglie %}
+                    <div class="maglie-grid">
+                        {% for maglia in maglie %}
+                            <div class="maglia-card">
+                                <div class="maglia-header">
+                                    <h3>{{ maglia.titolo }}</h3>
+                                    <button type="button" class="btn-delete" data-maglia-id="{{ maglia.id }}" title="Elimina maglia">🗑️</button>
+                                </div>
+
+                                {% if maglia.foto %}
+                                    <div class="maglia-images">
+                                        {% set foto_list = maglia.foto.split(',') %}
+                                        {% for foto in foto_list %}
+                                            {% if foto.startswith('http') %}
+                                                <img src="{{ foto }}" alt="Foto maglia" class="maglia-img">
+                                            {% else %}
+                                                <img src="{{ url_for('static', filename=foto) }}" alt="Foto maglia" class="maglia-img">
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <div class="no-image">Nessuna immagine</div>
+                                {% endif %}
+
+                                <div class="maglia-info">
+                                    <p class="sport-badge">{{ maglia.sport | upper }}</p>
+                                    <p class="descrizione">{{ maglia.descrizione }}</p>
+                                    <div class="price-info">
+                                        <span class="price">€ {{ "%.2f" | format(maglia.prezzo_base) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <p>📭 Nessuna maglia nel catalogo. Inizia ad aggiungerne una!</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <style>
+        .admin-maglie-section {
+            padding: 40px 20px;
+            background: #f9fafb;
+            min-height: calc(100vh - 200px);
+        }
+
+        .admin-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .admin-header {
+            margin-bottom: 40px;
+        }
+
+        .admin-header h1 {
+            font-size: 2.2rem;
+            color: #222;
+            margin-bottom: 10px;
+        }
+
+        .admin-header p {
+            color: #666;
+            font-size: 1rem;
+        }
+
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 20px;
+        }
+
+        .admin-header > div {
+            flex: 1;
+        }
+
+        .btn-toggle-form {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+            white-space: nowrap;
+            align-self: flex-end;
+        }
+
+        .btn-toggle-form:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+        }
+
+        .btn-toggle-form:active {
+            transform: translateY(0);
+        }
+
+        .btn-toggle-form.active {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+        }
+
+        .btn-toggle-form.active:hover {
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.35);
+        }
+
+        /* FORM SECTION */
+        .form-section {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 40px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            max-height: 2000px;
+            overflow: hidden;
+            opacity: 1;
+        }
+
+        .form-section-hidden {
+            display: none;
+            max-height: 0;
+            opacity: 0;
+            padding: 0;
+            margin: 0;
+        }
+
+        .form-section h2 {
+            font-size: 1.5rem;
+            color: #222;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .maglia-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.95rem;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 640px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* FILE UPLOAD */
+        .file-upload-area {
+            border: 2px dashed #10b981;
+            border-radius: 8px;
+            padding: 20px;
+            background: #f0fdf4;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload-area:hover {
+            border-color: #059669;
+            background: #dcfce7;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-upload-label {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+
+        .file-upload-label span {
+            font-weight: 600;
+            color: #10b981;
+            font-size: 1rem;
+        }
+
+        .file-upload-label small {
+            color: #666;
+            font-size: 0.85rem;
+        }
+
+        .preview-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .preview-item {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            background: white;
+            border: 1px solid #e5e7eb;
+        }
+
+        .preview-item img {
+            width: 100%;
+            height: 100px;
+            object-fit: cover;
+        }
+
+        .preview-remove {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .preview-remove:hover {
+            background: rgba(239, 68, 68, 1);
+        }
+
+        .btn-submit {
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+        }
+
+        .btn-submit:active {
+            transform: translateY(0);
+        }
+
+        /* MAGLIE LIST */
+        .maglie-list-section {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .maglie-list-section h2 {
+            font-size: 1.5rem;
+            color: #222;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .maglie-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .maglia-card {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .maglia-card:hover {
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+            transform: translateY(-4px);
+        }
+
+        .maglia-header {
+            padding: 16px;
+            background: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            gap: 8px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .maglia-header h3 {
+            flex: 1;
+            font-size: 1.1rem;
+            color: #222;
+            margin: 0;
+            word-break: break-word;
+        }
+
+        .btn-delete {
+            padding: 6px 10px;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .btn-delete:hover {
+            background: #fee2e2;
+            border-color: #ef4444;
+        }
+
+        .btn-delete.loading {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .maglia-images {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            padding: 12px;
+            background: white;
+            max-height: 200px;
+            overflow: hidden;
+        }
+
+        .maglia-img {
+            width: 100%;
+            height: 90px;
+            object-fit: cover;
+            border-radius: 6px;
+        }
+
+        .no-image {
+            padding: 20px 12px;
+            background: white;
+            color: #999;
+            text-align: center;
+            font-size: 0.9rem;
+            font-style: italic;
+        }
+
+        .maglia-info {
+            padding: 16px;
+        }
+
+        .sport-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #dcfce7;
+            color: #10b981;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            margin-bottom: 10px;
+            margin: 0;
+        }
+
+        .descrizione {
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            margin: 8px 0;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .price-info {
+            padding-top: 12px;
+            border-top: 1px solid #e5e7eb;
+            margin-top: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .price {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #10b981;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state p {
+            font-size: 1.1rem;
+            margin: 0;
+        }
+
+        @media (max-width: 768px) {
+            .admin-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .btn-toggle-form {
+                width: 100%;
+                align-self: stretch;
+            }
+
+            .form-section,
+            .maglie-list-section {
+                padding: 20px;
+            }
+
+            .admin-header h1 {
+                font-size: 1.8rem;
+            }
+
+            .maglie-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+
+    <script>
+        // Toggle form visibility
+        const toggleFormBtn = document.getElementById('toggleFormBtn');
+        const formSection = document.getElementById('formSection');
+
+        toggleFormBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            formSection.classList.toggle('form-section-hidden');
+            toggleFormBtn.classList.toggle('active');
+            
+            if (toggleFormBtn.classList.contains('active')) {
+                toggleFormBtn.textContent = '✕ Chiudi';
+                // Scroll to form
+                formSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else {
+                toggleFormBtn.textContent = '+ Aggiungi Maglia';
+            }
+        });
+
+        // File upload preview
+        const fileInput = document.getElementById('foto');
+        const previewContainer = document.getElementById('preview-container');
+
+        fileInput.addEventListener('change', function(e) {
+            previewContainer.innerHTML = '';
+            const files = Array.from(this.files).slice(0, 2); // Max 2 foto
+
+            files.forEach((file, index) => {
+                if (!file.type.startsWith('image/')) {
+                    alert('Per favore seleziona solo immagini');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const preview = document.createElement('div');
+                    preview.className = 'preview-item';
+                    preview.innerHTML = `
+                        <img src="${event.target.result}" alt="Preview">
+                        <button type="button" class="preview-remove" data-index="${index}">×</button>
+                    `;
+                    previewContainer.appendChild(preview);
+                };
+                reader.readAsDataURL(file);
+            });
+
+            // Limita a 2 foto
+            if (this.files.length > 2) {
+                alert('Puoi caricare massimo 2 foto');
+            }
+        });
+
+        // Click on label to open file picker
+        document.querySelector('.file-upload-area').addEventListener('click', function(e) {
+            if (e.target.classList.contains('preview-remove')) return;
+            fileInput.click();
+        });
+
+        // Drag and drop
+        const uploadArea = document.querySelector('.file-upload-area');
+        
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.style.borderColor = '#059669';
+            this.style.background = '#dcfce7';
+        });
+
+        uploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.style.borderColor = '#10b981';
+            this.style.background = '#f0fdf4';
+        });
+
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.style.borderColor = '#10b981';
+            this.style.background = '#f0fdf4';
+            fileInput.files = e.dataTransfer.files;
+            fileInput.dispatchEvent(new Event('change'));
+        });
+
+        // Delete maglia
+        document.querySelectorAll('.btn-delete').forEach(btn => {
+            btn.addEventListener('click', async function(e) {
+                e.preventDefault();
+                const magliaId = this.dataset.magliaId;
+
+                if (confirm('Sei sicuro di voler eliminare questa maglia? Non è possibile annullare.')) {
+                    this.classList.add('loading');
+                    this.disabled = true;
+
+                    try {
+                        const response = await fetch(`/admin/maglie/${magliaId}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
+
+                        if (response.ok) {
+                            // Animate removal
+                            const card = this.closest('.maglia-card');
+                            card.style.opacity = '0';
+                            card.style.transform = 'scale(0.95)';
+                            setTimeout(() => {
+                                card.remove();
+                                // Reload page if last item
+                                if (document.querySelectorAll('.maglia-card').length === 0) {
+                                    location.reload();
+                                }
+                            }, 300);
+                        } else {
+                            alert('Errore nell\'eliminazione della maglia');
+                            this.classList.remove('loading');
+                            this.disabled = false;
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        alert('Errore durante l\'eliminazione');
+                        this.classList.remove('loading');
+                        this.disabled = false;
+                    }
+                }
+            });
+        });
+    </script>
+{% endblock %}

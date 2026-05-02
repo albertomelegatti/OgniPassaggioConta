@@ -1,5 +1,6 @@
 import os
 import re
+import time
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask.cli import load_dotenv
 from flask_session import Session
@@ -7,6 +8,7 @@ from flask_sqlalchemy import SQLAlchemy
 from psycopg2.extras import RealDictCursor
 from db import get_connection, release_connection, init_pool
 from werkzeug.security import generate_password_hash, check_password_hash
+from admin import admin_bp
 
 load_dotenv()
 init_pool()
@@ -40,7 +42,18 @@ app.config['SESSION_COOKIE_SECURE'] = is_production  # True solo in produzione (
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
+# Configurazione upload file
+UPLOAD_FOLDER = 'static/uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
+
 Session(app)
+
+# Registra blueprints
+app.register_blueprint(admin_bp)
 
 # Crea la tabella delle sessioni al primo avvio
 with app.app_context():
@@ -123,7 +136,7 @@ def login():
             cur = conn.cursor(cursor_factory=RealDictCursor)
             
             cur.execute('''
-                SELECT username, hash_password, email 
+                SELECT username, hash_password, email, permessi
                 FROM utente 
                 WHERE username = %s
             ''', (username,))
@@ -134,6 +147,7 @@ def login():
                 # Crea la sessione
                 session['user_id'] = user['username']
                 session['email'] = user['email']
+                session['permessi'] = user['permessi']
                 session.permanent = True
                 
                 flash('Login avvenuto con successo!', 'success')
@@ -217,9 +231,9 @@ def signup():
             
             # Inserisci il nuovo utente
             cur.execute('''
-                INSERT INTO utente (username, hash_password, email)
-                VALUES (%s, %s, %s)
-            ''', (username, password_hash, email))
+                INSERT INTO utente (username, hash_password, email, permessi)
+                VALUES (%s, %s, %s, %s)
+            ''', (username, password_hash, email, 'base'))
             
             conn.commit()
             
@@ -238,11 +252,6 @@ def signup():
             release_connection(conn, cur)
     
     return render_template('signup.html')
-
-
-@app.route('/admin')
-def admin_dashboard():
-    return render_template('admin.html')
 
 
 @app.route('/health')

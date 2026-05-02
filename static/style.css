@@ -139,10 +139,10 @@ body {
     transform: translateY(0);
 }
 
-.btn-admin {
+.btn-admin,
+.btn-logout {
     display: block;
     padding: 12px 24px;
-    background: #f97316;
     color: white;
     text-decoration: none;
     border-radius: 8px;
@@ -150,6 +150,10 @@ body {
     transition: all 0.3s ease;
     text-align: center;
     width: 100%;
+}
+
+.btn-admin {
+    background: #f97316;
     box-shadow: 0 4px 12px rgba(249, 115, 22, 0.25);
 }
 
@@ -159,36 +163,8 @@ body {
     box-shadow: 0 6px 20px rgba(249, 115, 22, 0.35);
 }
 
-.btn-signup {
-    display: block;
-    padding: 12px 24px;
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
-    color: white;
-    text-decoration: none;
-    border-radius: 8px;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    text-align: center;
-    width: 100%;
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
-}
-
-.btn-signup:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
-}
-
 .btn-logout {
-    display: block;
-    padding: 12px 24px;
     background: #ef4444;
-    color: white;
-    text-decoration: none;
-    border-radius: 8px;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    text-align: center;
-    width: 100%;
     box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
 }
 
