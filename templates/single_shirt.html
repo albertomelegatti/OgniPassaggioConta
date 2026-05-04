@@ -1,0 +1,652 @@
+{% extends "base.html" %}
+
+{% block title %}{{ shirt.athlete }} - Ogni Passaggio Conta{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Single Shirt Page Styles */
+    .single-shirt-container {
+        padding: 16px 0;
+    }
+
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 12px 16px;
+        color: var(--primary-color);
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        margin-bottom: 20px;
+    }
+
+    .back-link:hover {
+        transform: translateX(-4px);
+        color: var(--primary-dark);
+    }
+
+    .shirt-detail-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 24px;
+        margin-bottom: 40px;
+    }
+
+    /* IMAGE GALLERY */
+    .gallery-section {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .main-image-container {
+        position: relative;
+        width: 100%;
+        background: #f9fafb;
+        border-radius: 12px;
+        overflow: hidden;
+        aspect-ratio: 3 / 4;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .main-image-container img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.3s ease;
+    }
+
+    .main-image-container:hover img {
+        transform: scale(1.05);
+    }
+
+    .gallery-thumbnails {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+    }
+
+    .thumbnail {
+        aspect-ratio: 1;
+        border-radius: 8px;
+        overflow: hidden;
+        cursor: pointer;
+        border: 2px solid transparent;
+        background: #f9fafb;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .thumbnail img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .thumbnail.active {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+    }
+
+    .thumbnail:hover {
+        transform: scale(0.95);
+    }
+
+    /* INFO SECTION */
+    .shirt-info-section {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .shirt-header-info {
+        border-bottom: 1px solid #e5e7eb;
+        padding-bottom: 20px;
+    }
+
+    .shirt-athlete-name {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text-color);
+        margin-bottom: 8px;
+        line-height: 1.2;
+        text-decoration: none;
+    }
+
+    .shirt-metadata {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: center;
+    }
+
+    .metadata-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.9rem;
+        color: #6b7280;
+        text-decoration: none;
+    }
+
+    .metadata-badge {
+        display: inline-block;
+        background: var(--bg-light);
+        color: var(--primary-dark);
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    /* PRICE SECTION */
+    .price-section {
+        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+        padding: 20px;
+        border-radius: 12px;
+        border-left: 4px solid var(--primary-color);
+    }
+
+    .price-label {
+        font-size: 0.85rem;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        display: block;
+        text-decoration: none;
+    }
+
+    .price-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--primary-dark);
+        line-height: 1;
+        text-decoration: none;
+    }
+
+    .price-subtext {
+        font-size: 0.85rem;
+        color: #6b7280;
+        margin-top: 8px;
+        text-decoration: none;
+    }
+
+    .price-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    /* AUCTION INFO */
+    .auction-info {
+        background: #fef3c7;
+        border: 2px solid #fcd34d;
+        border-radius: 12px;
+        padding: 16px;
+    }
+
+    .auction-info.active {
+        background: #dcfce7;
+        border-color: var(--primary-color);
+    }
+
+    .auction-label {
+        font-size: 0.85rem;
+        color: #92400e;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 6px;
+        display: block;
+        text-decoration: none;
+    }
+
+    .auction-info.active .auction-label {
+        color: var(--primary-dark);
+    }
+
+    .auction-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #92400e;
+        text-decoration: none;
+    }
+
+    .auction-info.active .auction-value {
+        color: var(--primary-dark);
+    }
+
+    /* DESCRIPTION */
+    .description-section {
+        padding: 20px;
+        background: #f9fafb;
+        border-radius: 12px;
+    }
+
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text-color);
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+    }
+
+    .description-text {
+        color: #4b5563;
+        line-height: 1.8;
+        font-size: 0.95rem;
+        white-space: pre-wrap;
+        word-break: break-word;
+        text-decoration: none;
+    }
+
+    /* DETAILS GRID */
+    .details-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .detail-item {
+        padding: 16px;
+        background: #f9fafb;
+        border-radius: 8px;
+        border-left: 3px solid var(--primary-color);
+    }
+
+    .detail-label {
+        font-size: 0.8rem;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 6px;
+        display: block;
+        text-decoration: none;
+    }
+
+    .detail-value {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-color);
+        text-decoration: none;
+    }
+
+    /* ACTION BUTTONS */
+    .action-buttons {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+        margin-top: 24px;
+    }
+
+    /* OFFER FORM */
+    .offer-form {
+        background: #f9fafb;
+        padding: 20px;
+        border-radius: 8px;
+        border: 2px solid var(--bg-light);
+    }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-color);
+        margin-bottom: 8px;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        box-sizing: border-box;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    }
+
+    .form-helper {
+        font-size: 0.85rem;
+        color: #6b7280;
+        margin-top: 4px;
+    }
+
+    .form-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 20px;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+        color: white;
+        padding: 14px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: block;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+    }
+
+    .btn-primary:active {
+        transform: translateY(0);
+    }
+
+    .btn-secondary {
+        background: white;
+        color: var(--primary-color);
+        padding: 14px 24px;
+        border: 2px solid var(--primary-color);
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: block;
+        text-align: center;
+    }
+
+    .btn-secondary:hover {
+        background: var(--bg-light);
+        transform: translateY(-2px);
+    }
+
+    .btn-secondary:active {
+        transform: translateY(0);
+    }
+
+    /* LIKE BUTTON */
+    .like-button {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        transition: transform 0.3s ease;
+        padding: 8px;
+    }
+
+    .like-button:hover {
+        transform: scale(1.2);
+    }
+
+    .like-button.liked {
+        color: #ef4444;
+    }
+
+    /* STATUS BADGE */
+    .status-badge {
+        display: inline-block;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .status-active {
+        background: #dcfce7;
+        color: var(--primary-dark);
+    }
+
+    .status-pending {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .status-ended {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    /* RELATED SHIRTS */
+    /* Removed - section no longer used */
+
+    /* TABLET */
+    @media (min-width: 768px) {
+        .shirt-detail-grid {
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+        }
+
+        .gallery-thumbnails {
+            grid-template-columns: repeat(5, 1fr);
+        }
+
+        .shirt-athlete-name {
+            font-size: 2rem;
+        }
+
+        .price-container {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .details-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .action-buttons {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .description-section {
+            grid-column: 1 / -1;
+        }
+    }
+
+    /* DESKTOP */
+    @media (min-width: 1024px) {
+        .shirt-detail-grid {
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+
+        .gallery-thumbnails {
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        .shirt-athlete-name {
+            font-size: 2.25rem;
+        }
+
+        .details-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        .action-buttons {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="single-shirt-container">
+    <div class="container">
+        <!-- Back Link -->
+        <a href="{{ url_for('shirts', sport=shirt.sport) }}" class="back-link">
+            ← Torna a {{ shirt.sport|title }}
+        </a>
+
+        <!-- Main Content Grid -->
+        <div class="shirt-detail-grid">
+            <!-- Gallery Section -->
+            <div class="gallery-section">
+                <div class="main-image-container">
+                    <img id="mainImage" src="{{ shirt.images[0] if shirt.images else 'https://via.placeholder.com/400x500?text=' + shirt.athlete|replace(' ', '+') }}" alt="{{ shirt.athlete }}">
+                </div>
+                <div class="gallery-thumbnails">
+                    {% for image in shirt.images %}
+                    <div class="thumbnail {% if loop.first %}active{% endif %}" onclick="changeMainImage(this)">
+                        <img src="{{ image }}" alt="{{ shirt.athlete }} - Foto {{ loop.index }}">
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Info Section -->
+            <div class="shirt-info-section">
+                <!-- Header Info -->
+                <div class="shirt-header-info">
+                    <h1 class="shirt-athlete-name">{{ shirt.athlete }}</h1>
+                    <div class="shirt-metadata">
+                        {% if shirt.team %}
+                        <span class="metadata-item">
+                            <span>🏟️</span>
+                            <span>{{ shirt.team }}</span>
+                        </span>
+                        {% endif %}
+                        {% if shirt.year %}
+                        <span class="metadata-item">
+                            <span>📅</span>
+                            <span>{{ shirt.year }}</span>
+                        </span>
+                        {% endif %}
+                        <span class="metadata-badge">{{ shirt.sport|title }}</span>
+                    </div>
+                </div>
+
+                <!-- Price Section -->
+                <div class="price-section">
+                    {% if shirt.has_auction %}
+                        <div class="price-container">
+                            <div>
+                                <span class="price-label">Offerta Attuale</span>
+                                <div class="price-value">€ {{ "%.2f"|format(shirt.current_price) }}</div>
+                            </div>
+                        </div>
+                        {% if shirt.end_time %}
+                        <p class="price-subtext">
+                            <strong>Asta scade:</strong> {{ shirt.end_time }}
+                        </p>
+                        {% endif %}
+                    {% else %}
+                        <div>
+                            <span class="price-label">Prezzo Base</span>
+                            <div class="price-value">€ {{ "%.2f"|format(shirt.base_price) }}</div>
+                        </div>
+                        <p class="price-subtext">Non ancora in asta</p>
+                    {% endif %}
+                </div>
+
+                <!-- Auction Status -->
+                {% if shirt.has_auction %}
+                <div class="auction-info active">
+                    <span class="auction-label">Asta Attiva</span>
+                    <div class="auction-value">🔥 In Corso</div>
+                    {% if shirt.current_winner %}
+                    <p class="price-subtext">
+                        <strong>Vincitore attuale:</strong> {{ shirt.current_winner }}
+                    </p>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="auction-info">
+                    <span class="auction-label">Status</span>
+                    <div class="auction-value">⏳ Prossimamente</div>
+                    <p class="price-subtext">L'asta non è ancora iniziata</p>
+                </div>
+                {% endif %}
+
+                <!-- Action Buttons -->
+                {% if shirt.has_auction %}
+                    {% if session.get('user_id') %}
+                    <div class="offer-form">
+                        <form id="offerForm" method="POST" action="{{ url_for('make_offer', asta_id=shirt.id) }}">
+                            <h3 class="section-title">💰 Fai un'Offerta</h3>
+                            <div class="form-group">
+                                <label class="form-label">Offerta (€)</label>
+                                <input type="number" name="offerta" class="form-input" step="0.01" min="{{ "%.2f"|format(shirt.current_price + 1.00) }}" placeholder="Es. {{ "%.2f"|format(shirt.current_price + 1.00) }}" required>
+                                <p class="form-helper">Minimo: € {{ "%.2f"|format(shirt.current_price + 1.00) }}</p>
+                            </div>
+                            <div class="form-buttons">
+                                <button type="submit" class="btn-primary">Invia Offerta</button>
+                                <button type="reset" class="btn-secondary">Annulla</button>
+                            </div>
+                        </form>
+                    </div>
+                    {% else %}
+                    <a href="{{ url_for('login') }}" class="btn-primary">Accedi per Offrire</a>
+                    {% endif %}
+                {% else %}
+                    {% if session.get('user_id') %}
+                    <button class="btn-primary" onclick="avviaAsta()">🚀 Avvia Asta</button>
+                    {% else %}
+                    <a href="{{ url_for('login') }}" class="btn-primary">Accedi per Avviare Asta</a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Description Section -->
+        {% if shirt.description %}
+        <div class="description-section">
+            <h2 class="section-title">📝 Descrizione</h2>
+            <p class="description-text">{{ shirt.description }}</p>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<script>
+    function changeMainImage(thumbnail) {
+        // Remove active class from all thumbnails
+        document.querySelectorAll('.thumbnail').forEach(t => t.classList.remove('active'));
+        
+        // Add active class to clicked thumbnail
+        thumbnail.classList.add('active');
+        
+        // Change main image
+        const imageSrc = thumbnail.querySelector('img').src;
+        document.getElementById('mainImage').src = imageSrc;
+    }
+
+    function avviaAsta() {
+        if (!confirm('Sei sicuro di voler avviare l\'asta per questa maglia?\n\nL\'asta durerà 2 ore dalla ora di adesso.')) {
+            return;
+        }
+        
+        // Crea un form nascosto e invialo
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ url_for("start_auction", maglia_id=shirt.maglia_id) }}';
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+</script>
+
+{% endblock %}

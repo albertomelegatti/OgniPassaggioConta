@@ -17,34 +17,30 @@
         <div class="container">
             <div class="shirts-grid">
                 {% for shirt in shirts %}
-                <div class="shirt-card">
+                <a href="{{ url_for('shirt_detail', maglia_id=shirt.maglia_id) }}" class="shirt-card">
                     <div class="shirt-image-wrapper">
-                        <img src="https://via.placeholder.com/300x400?text=Maglia+{{ shirt.athlete|replace(' ', '+') }}" alt="{{ shirt.athlete }}" class="shirt-image">
-                        <button class="like-btn" data-id="{{ shirt.id }}">
+                        <img src="{{ shirt.image }}" alt="{{ shirt.athlete }}" class="shirt-image">
+                        <button class="like-btn" data-id="{{ shirt.id }}" onclick="event.preventDefault(); likeShirt(this)">
                             <span class="heart">♡</span>
                             <span class="like-count">0</span>
                         </button>
                     </div>
                     <div class="shirt-info">
-                        <h3 class="shirt-title">{{ shirt.athlete }}</h3>
-                        <div class="shirt-meta">
-                            <span class="meta-item">{{ shirt.team }}</span>
-                            <span class="meta-separator">•</span>
-                            <span class="meta-item">{{ shirt.year }}</span>
-                        </div>
+                        <h3 class="shirt-title">{{ shirt.title }}</h3>
                         {% if shirt.has_auction %}
                         <div class="shirt-price">
+                            <span class="price-label">Offerta attuale</span>
                             <span class="price-main">€ {{ "%.2f"|format(shirt.current_price) }}</span>
-                            <span class="price-tax">€ {{ "%.2f"|format(shirt.current_price * 1.06) }} incl.</span>
                         </div>
                         {% else %}
                         <div class="shirt-price">
-                            <span class="price-main">Prezzo base: € {{ "%.2f"|format(shirt.base_price) }}</span>
-                            <span class="price-status">Non ancora in asta</span>
+                            <span class="price-label">Prezzo base</span>
+                            <span class="price-main">€ {{ "%.2f"|format(shirt.base_price) }}</span>
+                            <span class="price-status">Nessuna asta disponibile</span>
                         </div>
                         {% endif %}
                     </div>
-                </div>
+                </a>
                 {% endfor %}
             </div>
 
@@ -122,6 +118,8 @@
     overflow: hidden;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     cursor: pointer;
+    text-decoration: none;
+    color: inherit;
 }
 
 .shirt-card:hover {
@@ -194,6 +192,7 @@
     color: #222;
     line-height: 1.3;
     min-height: 2.6em;
+    text-decoration: none;
 }
 
 .shirt-meta {
@@ -202,10 +201,12 @@
     margin-bottom: 4px;
     display: flex;
     align-items: center;
+    text-decoration: none;
 }
 
 .meta-item {
     display: inline;
+    text-decoration: none;
 }
 
 .meta-separator {
@@ -221,24 +222,39 @@
 .shirt-price {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 4px;
+    text-decoration: none;
+    margin-top: 8px;
+}
+
+.price-label {
+    font-size: 0.7rem;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    text-decoration: none;
 }
 
 .price-main {
-    font-size: 1rem;
+    font-size: 1.1rem;
     font-weight: 700;
-    color: #222;
+    color: #10b981;
+    text-decoration: none;
 }
 
 .price-tax {
     font-size: 0.75rem;
     color: #999;
+    text-decoration: none;
 }
 
 .price-status {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: #999;
     font-style: italic;
+    text-decoration: none;
+    margin-top: 2px;
 }
 
 .no-shirts {
@@ -271,3 +287,20 @@
 }
 </style>
 {% endblock %}
+
+<script>
+function likeShirt(button) {
+    button.classList.toggle('liked');
+    const count = parseInt(button.querySelector('.like-count').textContent) || 0;
+    if (button.classList.contains('liked')) {
+        button.querySelector('.like-count').textContent = count + 1;
+        button.querySelector('.heart').textContent = '♥';
+        button.style.color = '#ef4444';
+    } else {
+        button.querySelector('.like-count').textContent = Math.max(0, count - 1);
+        button.querySelector('.heart').textContent = '♡';
+        button.style.color = '#666';
+    }
+}
+</script>
+
