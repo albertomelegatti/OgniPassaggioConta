@@ -1,0 +1,362 @@
+{% extends "base.html" %}
+
+{% block title %}Gestione Utenti - Admin{% endblock %}
+
+{% block content %}
+    <section class="users-section">
+        <div class="users-container">
+            <div class="users-header">
+                <h1>Gestione Utenti</h1>
+                <p>Concedi o revoca permessi di amministratore</p>
+            </div>
+
+            <div class="users-table-wrapper">
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Permessi</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if utenti %}
+                            {% for utente in utenti %}
+                                <tr class="user-row user-role-{{ utente.permessi }}">
+                                    <td class="user-username">
+                                        <strong>{{ utente.username }}</strong>
+                                        {% if utente.permessi == 'superAdmin' %}
+                                            <span class="role-badge role-superadmin">SuperAdmin</span>
+                                        {% elif utente.permessi == 'admin' %}
+                                            <span class="role-badge role-admin">Admin</span>
+                                        {% else %}
+                                            <span class="role-badge role-base">Base</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="user-email">{{ utente.email }}</td>
+                                    <td class="user-permessi">
+                                        {% if utente.permessi == 'superAdmin' %}
+                                            <span class="status-label status-superadmin">🔐 SuperAdmin</span>
+                                        {% elif utente.permessi == 'admin' %}
+                                            <span class="status-label status-admin">⚙️ Admin</span>
+                                        {% else %}
+                                            <span class="status-label status-base">👤 Base</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="user-actions">
+                                        {% if utente.permessi == 'superAdmin' %}
+                                            <span class="action-disabled">Non modificabile</span>
+                                        {% else %}
+                                            {% if utente.permessi == 'base' %}
+                                                <form method="POST" class="action-form" style="display: inline;">
+                                                    <input type="hidden" name="action" value="grant">
+                                                    <input type="hidden" name="username" value="{{ utente.username }}">
+                                                    <button type="submit" class="btn-grant" title="Concedi permesso admin">
+                                                        ➕ Concedi Admin
+                                                    </button>
+                                                </form>
+                                            {% else %}
+                                                <form method="POST" class="action-form" style="display: inline;">
+                                                    <input type="hidden" name="action" value="revoke">
+                                                    <input type="hidden" name="username" value="{{ utente.username }}">
+                                                    <button type="submit" class="btn-revoke" title="Revoca permesso admin" onclick="return confirm('Sei sicuro di voler revocare i permessi admin a {{ utente.username }}?')">
+                                                        ➖ Revoca Admin
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="4" class="no-users">Nessun utente trovato</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="users-legend">
+                <h3>Legenda Permessi</h3>
+                <div class="legend-items">
+                    <div class="legend-item">
+                        <span class="legend-badge role-superadmin">SuperAdmin</span>
+                        <span class="legend-text">Accesso totale + gestione permessi</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-badge role-admin">Admin</span>
+                        <span class="legend-text">Accesso sezioni admin (maglie, aste, ecc.)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-badge role-base">Base</span>
+                        <span class="legend-text">Accesso pubblico, nessun privilegio admin</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <style>
+        .users-section {
+            padding: 40px 20px;
+            background: #f9fafb;
+            min-height: calc(100vh - 200px);
+        }
+
+        .users-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .users-header {
+            margin-bottom: 40px;
+        }
+
+        .users-header h1 {
+            font-size: 2.5rem;
+            color: #222;
+            margin-bottom: 10px;
+        }
+
+        .users-header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .users-table-wrapper {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            margin-bottom: 40px;
+        }
+
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+
+        .users-table thead {
+            background: #f3f4f6;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .users-table th {
+            padding: 16px 20px;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+        }
+
+        .users-table tbody tr {
+            border-bottom: 1px solid #e5e7eb;
+            transition: background-color 0.3s;
+        }
+
+        .users-table tbody tr:hover {
+            background-color: #f9fafb;
+        }
+
+        .users-table td {
+            padding: 16px 20px;
+            color: #374151;
+        }
+
+        .user-username {
+            font-weight: 600;
+            color: #222;
+        }
+
+        .role-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .role-superadmin {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .role-admin {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .role-base {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .status-label {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .status-superadmin {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status-admin {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-base {
+            background: #f0fdf4;
+            color: #166534;
+        }
+
+        .user-actions {
+            text-align: center;
+        }
+
+        .action-form {
+            margin: 0;
+        }
+
+        .btn-grant,
+        .btn-revoke {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+        }
+
+        .btn-grant {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-grant:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-revoke {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-revoke:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        .action-disabled {
+            color: #9ca3af;
+            font-size: 0.85rem;
+            padding: 8px 16px;
+            display: inline-block;
+        }
+
+        .no-users {
+            text-align: center;
+            padding: 40px 20px !important;
+            color: #9ca3af;
+            font-style: italic;
+        }
+
+        .users-legend {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .users-legend h3 {
+            font-size: 1.3rem;
+            color: #222;
+            margin-bottom: 20px;
+        }
+
+        .legend-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+
+        .legend-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .legend-text {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .users-section {
+                padding: 20px;
+            }
+
+            .users-header h1 {
+                font-size: 2rem;
+            }
+
+            .users-table-wrapper {
+                overflow-x: auto;
+            }
+
+            .users-table {
+                font-size: 0.85rem;
+            }
+
+            .users-table th,
+            .users-table td {
+                padding: 12px 10px;
+            }
+
+            .btn-grant,
+            .btn-revoke {
+                padding: 6px 12px;
+                font-size: 0.8rem;
+            }
+
+            .role-badge {
+                display: none;
+            }
+
+            .legend-items {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+{% endblock %}

@@ -33,7 +33,42 @@ def dashboard():
     if not check_admin_permission():
         flash('Accesso negato. Solo gli admin possono accedere.', 'error')
         return redirect(url_for('landing'))
-    return render_template('admin.html')
+    
+    total_shirts = 0
+    active_auctions = 0
+    total_users = 0
+    total_bids = 0
+    
+    conn = None
+    cur = None
+    
+    try:
+        conn = get_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Ottieni il numero totale di maglie
+        cur.execute('SELECT COUNT(*) AS count FROM maglia')
+        total_shirts = cur.fetchone()['count']
+        
+        # Ottieni il numero di aste attive (con stato 'in_corso')
+        cur.execute("SELECT COUNT(*) AS count FROM asta WHERE stato = 'in_corso'")
+        active_auctions = cur.fetchone()['count']
+        
+        # Ottieni il numero totale di utenti
+        cur.execute('SELECT COUNT(*) AS count FROM utente')
+        total_users = cur.fetchone()['count']
+    
+    except Exception as e:
+        print(f"Error in admin dashboard: {e}")
+        flash(f'Errore: {str(e)}', 'error')
+        
+    finally:
+        release_connection(conn, cur)
+    
+    
+    
+    
+    return render_template('admin.html', total_shirts=total_shirts, active_auctions=active_auctions, total_users=total_users, total_bids=total_bids)
 
 
 
@@ -118,14 +153,22 @@ def maglie():
             # Inserisci la maglia nel database
             foto_json = json.dumps(foto_paths) if foto_paths else None
             
-            cur.execute('''
-                INSERT INTO maglia (titolo, descrizione, prezzo_base, sport, foto)
-                VALUES (%s, %s, %s, %s, %s)
-            ''', (titolo, descrizione, float(prezzo_base), sport.lower(), foto_json))
-            
-            conn.commit()
-            flash(f'Maglia "{titolo}" aggiunta con successo!', 'success')
-            return redirect(url_for('admin.maglie'))
+            try:
+                cur.execute('''
+                    INSERT INTO maglia (titolo, descrizione, prezzo_base, sport, foto)
+                    VALUES (%s, %s, %s, %s, %s)
+                    RETURNING id
+                ''', (titolo, descrizione, float(prezzo_base), sport.lower(), foto_json))
+                
+                conn.commit()
+                flash(f'Maglia "{titolo}" aggiunta con successo!', 'success')
+                return redirect(url_for('admin.maglie'))
+            except Exception as e:
+                if conn:
+                    conn.rollback()
+                print(f"Error inserting maglia: {e}")
+                flash(f'Errore nell\'aggiunta della maglia: {str(e)}', 'error')
+                return redirect(url_for('admin.maglie'))
         
         # GET: mostra tutte le maglie
         cur.execute('SELECT * FROM maglia ORDER BY sport, titolo')
@@ -153,7 +196,10 @@ def maglie():
         
     except Exception as e:
         if conn:
-            conn.rollback()
+            try:
+                conn.rollback()
+            except:
+                pass
         print(f"Error in admin maglie: {e}")
         flash(f'Errore: {str(e)}', 'error')
         maglie = []
@@ -179,8 +225,8 @@ def delete_maglia(maglia_id):
         conn = get_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
         
-        # Ottieni le foto da eliminare
-        cur.execute('SELECT foto FROM maglia WHERE id = %s', (maglia_id,))
+        # Ottieni le foto da eliminare con lock pessimistico per evitare race condition
+        cur.execute('SELECT foto FROM maglia WHERE id = %s FOR UPDATE', (maglia_id,))
         maglia = cur.fetchone()
         
         if not maglia:
@@ -226,9 +272,118 @@ def delete_maglia(maglia_id):
     
     except Exception as e:
         if conn:
-            conn.rollback()
+            try:
+                conn.rollback()
+            except:
+                pass
         print(f"Error deleting maglia: {e}")
         return jsonify({'error': str(e)}), 500
+    
+    finally:
+        release_connection(conn, cur)
+
+
+@admin_bp.route('/users', methods=['GET', 'POST'])
+def users():
+    # Verifica che l'utente corrente sia un superAdmin
+    if not session.get('logged_in') or session.get('permessi') != 'superAdmin':
+        flash('Accesso negato. Solo i superAdmin possono accedere.', 'error')
+        return redirect(url_for('landing'))
+    
+    conn = None
+    cur = None
+    
+    try:
+        conn = get_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        if request.method == 'POST':
+            # Gestisci le richieste di cambio permessi
+            action = request.form.get('action')  # 'grant' o 'revoke'
+            username = request.form.get('username', '').strip()
+            
+            if not action or not username:
+                flash('Dati non validi.', 'error')
+                return redirect(url_for('admin.users'))
+            
+            # Previeni che un superAdmin modifichi se stesso
+            if username == session.get('username'):
+                flash('Non puoi modificare i tuoi stessi permessi.', 'error')
+                return redirect(url_for('admin.users'))
+            
+            # Verifica che l'utente esista
+            cur.execute('SELECT permessi FROM utente WHERE username = %s', (username,))
+            user = cur.fetchone()
+            
+            if not user:
+                flash(f'Utente "{username}" non trovato.', 'error')
+                return redirect(url_for('admin.users'))
+            
+            try:
+                if action == 'grant':
+                    # Concedi il permesso admin
+                    if user['permessi'] in ['admin', 'superAdmin']:
+                        flash(f'Utente "{username}" ha già permessi admin.', 'error')
+                    else:
+                        cur.execute(
+                            'UPDATE utente SET permessi = %s WHERE username = %s',
+                            ('admin', username)
+                        )
+                        conn.commit()
+                        flash(f'Permesso admin concesso a "{username}".', 'success')
+                
+                elif action == 'revoke':
+                    # Revoca il permesso admin
+                    if user['permessi'] == 'superAdmin':
+                        flash('Non puoi revocare i permessi ad un altro superAdmin.', 'error')
+                    elif user['permessi'] == 'base':
+                        flash(f'Utente "{username}" non ha permessi admin.', 'error')
+                    else:
+                        cur.execute(
+                            'UPDATE utente SET permessi = %s WHERE username = %s',
+                            ('base', username)
+                        )
+                        conn.commit()
+                        flash(f'Permesso admin revocato da "{username}".', 'success')
+                else:
+                    flash('Azione non valida.', 'error')
+            
+            except Exception as e:
+                if conn:
+                    conn.rollback()
+                print(f"Error updating user permission: {e}")
+                flash(f'Errore durante l\'aggiornamento: {str(e)}', 'error')
+            
+            return redirect(url_for('admin.users'))
+        
+        # GET: mostra tutti gli utenti
+        cur.execute('''
+            SELECT username, email, permessi
+            FROM utente
+            ORDER BY 
+                CASE 
+                    WHEN permessi = 'superAdmin' THEN 1
+                    WHEN permessi = 'admin' THEN 2
+                    ELSE 3
+                END,
+                username
+        ''')
+        
+        utenti = cur.fetchall()
+        utenti_list = [dict(utente) for utente in utenti]
+        
+        return render_template('admin_users.html', utenti=utenti_list)
+    
+    except Exception as e:
+        if conn:
+            try:
+                conn.rollback()
+            except:
+                pass
+        print(f"Error in admin users: {e}")
+        flash(f'Errore: {str(e)}', 'error')
+        utenti_list = []
+        return render_template('admin_users.html', utenti=utenti_list)
     
     finally:
         release_connection(conn, cur)
@@ -321,6 +476,6 @@ def upload_to_supabase(file, folder="maglie"):
 
 def check_admin_permission():
     # Verifica se l'utente corrente è un admin.
-    if not session.get('user_id') or session.get('permessi') != 'admin':
+    if not session.get('logged_in') or session.get('permessi') not in ['admin', 'superAdmin']:
         return False
     return True

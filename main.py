@@ -3,7 +3,7 @@ import re
 import time
 import json
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask.cli import load_dotenv
 from flask_session import Session
 from flask_sqlalchemy import SQLAlchemy
@@ -39,8 +39,8 @@ db = SQLAlchemy(app)
 app.config['SESSION_TYPE'] = 'sqlalchemy'
 app.config['SESSION_SQLALCHEMY'] = db
 app.config['SESSION_PERMANENT'] = True
-app.config['PERMANENT_SESSION_LIFETIME'] = 3600 * 24 * 365
-app.config['SESSION_COOKIE_SECURE'] = is_production  # True solo in produzione (HTTPS)
+app.config['PERMANENT_SESSION_LIFETIME'] = 3600 * 24 * 30  # 30 giorni
+app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
@@ -205,13 +205,47 @@ def shirt_detail(maglia_id):
 
 
 
+@app.route('/api/asta/<int:asta_id>')
+def get_auction_data(asta_id):
+    """Endpoint API che restituisce i dati aggiornati dell'asta in JSON"""
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    
+    try:
+        cur.execute('''
+            SELECT offerta_attuale, vincitore_attuale, data_fine
+            FROM asta
+            WHERE id = %s
+        ''', (asta_id,))
+        
+        asta = cur.fetchone()
+        
+        if not asta:
+            return jsonify({'error': 'Asta non trovata'}), 404
+        
+        return jsonify({
+            'offerta_attuale': float(asta['offerta_attuale']) if asta['offerta_attuale'] else 0,
+            'vincitore_attuale': asta['vincitore_attuale'],
+            'data_fine': asta['data_fine'].isoformat() if asta['data_fine'] else None,
+            'minimo_offerta': float(asta['offerta_attuale']) + 1 if asta['offerta_attuale'] else 1
+        })
+        
+    except Exception as e:
+        print(f"Error fetching auction data: {e}")
+        return jsonify({'error': 'Errore nel recupero dati'}), 500
+    finally:
+        release_connection(conn, cur)
+
+
 @app.route('/offer/<int:asta_id>', methods=['POST'])
 def make_offer(asta_id):
     
-    if not session.get('user_id'):
-        flash('Devi accedere per fare un\'offerta', 'error')
+    if not session.get('logged_in'):
+        flash('❌ Devi accedere per fare un\'offerta', 'error')
         return redirect(url_for('login'))
     
+    conn = None
+    cur = None
     try:
         offerta = float(request.form.get('offerta', 0))
         
@@ -222,27 +256,28 @@ def make_offer(asta_id):
         conn = get_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
         
-        # Verifica l'offerta attuale e data_fine
-        cur.execute('SELECT offerta_attuale, data_fine FROM asta WHERE id = %s', (asta_id,))
-        asta_data = cur.fetchone()
-        
-        if not asta_data:
-            flash('Asta non trovata', 'error')
-            return redirect(request.referrer or url_for('sports'))
-        
-        offerta_attuale = asta_data['offerta_attuale'] or 0
-        
-        # L'offerta deve essere superiore di almeno 1€
-        if offerta < offerta_attuale + 1:
-            flash(f'L\'offerta deve essere almeno € {offerta_attuale + 1:.2f}', 'error')
-            return redirect(request.referrer or url_for('sports'))
-        
-        # Aggiorna l'offerta e la data_fine (estesa di 2 ore)
+        # ATOMICA: Verifica e aggiorna in un'unica query con lock pessimistico
         cur.execute('''
             UPDATE asta 
-            SET offerta_attuale = %s, vincitore_attuale = %s, data_fine = (NOW() AT TIME ZONE 'Europe/Rome') + INTERVAL '2 hours'
-            WHERE id = %s
-        ''', (offerta, session.get('user_id'), asta_id))
+            SET offerta_attuale = %s, vincitore_attuale = %s, 
+                data_fine = (NOW() AT TIME ZONE 'Europe/Rome') + INTERVAL '2 hours'
+            WHERE id = %s AND (%s >= COALESCE(offerta_attuale, 0) + 1)
+            RETURNING offerta_attuale, data_fine
+        ''', (offerta, session.get('username'), asta_id, offerta))
+        
+        updated_auction = cur.fetchone()
+        
+        if not updated_auction:
+            # Recupera il valore attuale per il messaggio d'errore
+            cur.execute('SELECT COALESCE(offerta_attuale, 0) as offerta_attuale FROM asta WHERE id = %s', (asta_id,))
+            asta_data = cur.fetchone()
+            
+            if not asta_data:
+                flash('Asta non trovata', 'error')
+            else:
+                offerta_attuale = asta_data['offerta_attuale']
+                flash(f'L\'offerta deve essere almeno € {offerta_attuale + 1:.2f}', 'error')
+            return redirect(request.referrer or url_for('sports'))
         
         conn.commit()
         flash(f'Offerta di € {offerta:.2f} inviata con successo! Asta estesa di 2 ore.', 'success')
@@ -250,6 +285,11 @@ def make_offer(asta_id):
     except ValueError:
         flash('Importo non valido', 'error')
     except Exception as e:
+        if conn:
+            try:
+                conn.rollback()
+            except:
+                pass
         print(f"Error making offer: {e}")
         flash('Errore durante l\'invio dell\'offerta', 'error')
     finally:
@@ -263,8 +303,8 @@ def make_offer(asta_id):
 @app.route('/start-auction/<int:maglia_id>', methods=['POST'])
 def start_auction(maglia_id):
     
-    if not session.get('user_id'):
-        flash('Devi accedere per avviare un\'asta', 'error')
+    if not session.get('logged_in'):
+        flash('❌ Devi accedere per avviare un\'asta', 'error')
         return redirect(url_for('login'))
     
     conn = None
@@ -282,24 +322,39 @@ def start_auction(maglia_id):
             flash('Maglia non trovata', 'error')
             return redirect(url_for('sports'))
         
-        # Verifica che non esista già un'asta per questa maglia
-        cur.execute('SELECT id FROM asta WHERE id_maglia = %s', (maglia_id,))
-        if cur.fetchone():
-            flash(f'Un\'asta esiste già per la maglia "{maglia["titolo"]}"', 'warning')
-            return redirect(request.referrer or url_for('sports'))
-        
-        # Crea una nuova asta: scadenza 2 ore da adesso (ora di Roma)
-        cur.execute('''
-            INSERT INTO asta (id_maglia, data_inizio, data_fine, offerta_attuale)
-            VALUES (%s, NOW() AT TIME ZONE 'Europe/Rome', (NOW() AT TIME ZONE 'Europe/Rome') + INTERVAL '2 hours', %s)
-        ''', (maglia_id, maglia['prezzo_base']))
-        
-        conn.commit()
-        flash(f'Asta avviata per "{maglia["titolo"]}" - Scade tra 2 ore', 'success')
+        # Tenta di inserire atomicamente - se già esiste, avrà errore
+        try:
+            cur.execute('''
+                INSERT INTO asta (id_maglia, data_inizio, data_fine, offerta_attuale)
+                VALUES (%s, NOW() AT TIME ZONE 'Europe/Rome', (NOW() AT TIME ZONE 'Europe/Rome') + INTERVAL '2 hours', %s)
+                ON CONFLICT (id_maglia) DO NOTHING
+                RETURNING id
+            ''', (maglia_id, maglia['prezzo_base']))
+            
+            result = cur.fetchone()
+            
+            if not result:
+                # Un'asta esiste già per questa maglia
+                flash(f'Un\'asta esiste già per la maglia "{maglia["titolo"]}"', 'warning')
+                return redirect(request.referrer or url_for('sports'))
+            
+            conn.commit()
+            flash(f'Asta avviata per "{maglia["titolo"]}" - Scade tra 2 ore', 'success')
+            
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            if 'unique' in str(e).lower():
+                flash(f'Un\'asta esiste già per la maglia "{maglia["titolo"]}"', 'warning')
+            else:
+                raise
         
     except Exception as e:
         if conn:
-            conn.rollback()
+            try:
+                conn.rollback()
+            except:
+                pass
         print(f"Error starting auction: {e}")
         flash(f'Errore durante l\'avvio dell\'asta: {str(e)}', 'error')
     
@@ -315,9 +370,18 @@ def start_auction(maglia_id):
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     
+    # Se l'utente è già loggato, reindirizza
+    if session.get('logged_in'):
+        return redirect(url_for('landing'))
+    
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
+        
+        # Validazione campi
+        if not username or not password:
+            flash('❌ Compila username e password', 'error')
+            return redirect(url_for('login'))
         
         conn = None
         cur = None
@@ -334,23 +398,27 @@ def login():
             user = cur.fetchone()
             
             if user and check_password_hash(user['hash_password'], password):
-                # Crea la sessione
-                session['user_id'] = user['username']
+                # Prepara la sessione (Flask-Session la salva automaticamente)
+                session.clear()
+                session['logged_in'] = True
+                session['username'] = user['username']
                 session['email'] = user['email']
                 session['permessi'] = user['permessi']
                 session.permanent = True
                 
-                flash('Login avvenuto con successo!', 'success')
+                flash('✅ Login avvenuto con successo!', 'success')
                 return redirect(url_for('landing'))
             else:
-                return render_template('login.html', error='Credenziali non valide. Riprova.')
+                flash('❌ Credenziali non valide. Riprova.', 'error')
         
         except Exception as e:
             print(f"Error during login: {e}")
-            return render_template('login.html', error='Errore durante il login. Riprova più tardi.')
+            flash('❌ Errore di connessione al database.', 'error')
             
         finally:
             release_connection(conn, cur)
+        
+        return redirect(url_for('login'))
     
     return render_template('login.html')
 
@@ -392,37 +460,44 @@ def signup():
         if errors:
             return render_template('signup.html', error=' | '.join(errors))
         
-        
         conn = None
         cur = None
         try:
-            conn = get_connection()
-            cur = conn.cursor(cursor_factory=RealDictCursor)
-            
-            # Controlla se l'utente esiste già
-            cur.execute('SELECT 1 FROM utente WHERE email = %s OR username = %s', (email, username))
-            if cur.fetchone():
-                return render_template('signup.html', error='Email o username già in uso')
-                
-            
             # Hash della password
             password_hash = generate_password_hash(password)
             
-            # Inserisci il nuovo utente
-            cur.execute('''
-                INSERT INTO utente (username, hash_password, email, permessi)
-                VALUES (%s, %s, %s, %s)
-            ''', (username, password_hash, email, 'base'))
+            conn = get_connection()
+            cur = conn.cursor(cursor_factory=RealDictCursor)
             
-            conn.commit()
-            
-            
-            flash('Registrazione avvenuta con successo! Puoi ora effettuare il login.', 'success')
-            return redirect(url_for('login'))
+            # Tenta di inserire atomicamente - se email/username esistono, avrà errore UNIQUE
+            try:
+                cur.execute('''
+                    INSERT INTO utente (username, hash_password, email, permessi)
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING username
+                ''', (username, password_hash, email, 'base'))
+                
+                conn.commit()
+                flash('Registrazione avvenuta con successo! Puoi ora effettuare il login.', 'success')
+                return redirect(url_for('login'))
+                
+            except Exception as e:
+                if conn:
+                    conn.rollback()
+                # Controlla quale vincolo UNIQUE è stato violato
+                if 'email' in str(e).lower():
+                    return render_template('signup.html', error='Email già in uso')
+                elif 'username' in str(e).lower():
+                    return render_template('signup.html', error='Username già in uso')
+                else:
+                    raise
             
         except Exception as e:
             if conn:
-                conn.rollback()
+                try:
+                    conn.rollback()
+                except:
+                    pass
             print(f"Error during signup: {e}")
             flash('Errore durante la registrazione. Riprova più tardi.', 'error')
             return render_template('signup.html')

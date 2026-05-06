@@ -15,22 +15,40 @@
 
     <section class="shirts-section">
         <div class="container">
+            <div class="shirts-filters">
+                <button class="filter-btn active" data-filter="all" onclick="filterShirts('all')">
+                    Tutte ({{ shirts|length }})
+                </button>
+                <button class="filter-btn" data-filter="auction" onclick="filterShirts('auction')">
+                    Con Asta ({{ shirts|selectattr('has_auction')|list|length }})
+                </button>
+                <button class="filter-btn" data-filter="no-auction" onclick="filterShirts('no-auction')">
+                    Senza Asta ({{ shirts|rejectattr('has_auction')|list|length }})
+                </button>
+                <button class="filter-btn" data-filter="ended" onclick="filterShirts('ended')">
+                    Aste Terminate ({{ shirts|selectattr('auction_ended')|list|length }})
+                </button>
+            </div>
+
             <div class="shirts-grid">
                 {% for shirt in shirts %}
-                <a href="{{ url_for('shirt_detail', maglia_id=shirt.maglia_id) }}" class="shirt-card">
+                <a href="{{ url_for('shirt_detail', maglia_id=shirt.maglia_id) }}" class="shirt-card" data-auction="{% if shirt.has_auction %}yes{% else %}no{% endif %}" data-auction-status="{% if shirt.auction_ended %}ended{% else %}active{% endif %}" {% if shirt.has_auction %}data-asta-id="{{ shirt.id }}"{% endif %}>
                     <div class="shirt-image-wrapper">
                         <img src="{{ shirt.image }}" alt="{{ shirt.athlete }}" class="shirt-image">
-                        <button class="like-btn" data-id="{{ shirt.id }}" onclick="event.preventDefault(); likeShirt(this)">
-                            <span class="heart">♡</span>
-                            <span class="like-count">0</span>
-                        </button>
+                        {% if shirt.has_auction %}
+                            {% if shirt.auction_ended %}
+                            <span class="auction-badge auction-badge-ended auction-badge-{{ shirt.id }}">✓ Asta Terminata</span>
+                            {% else %}
+                            <span class="auction-badge auction-badge-{{ shirt.id }}">🎯 Asta in corso</span>
+                            {% endif %}
+                        {% endif %}
                     </div>
                     <div class="shirt-info">
                         <h3 class="shirt-title">{{ shirt.title }}</h3>
                         {% if shirt.has_auction %}
                         <div class="shirt-price">
                             <span class="price-label">Offerta attuale</span>
-                            <span class="price-main">€ {{ "%.2f"|format(shirt.current_price) }}</span>
+                            <span class="price-main price-main-{{ shirt.id }}">€ {{ "%.2f"|format(shirt.current_price) }}</span>
                         </div>
                         {% else %}
                         <div class="shirt-price">
@@ -105,6 +123,36 @@
     margin: 0 auto;
 }
 
+.shirts-filters {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+}
+
+.filter-btn {
+    padding: 10px 20px;
+    border: 2px solid #e5e7eb;
+    background: white;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #666;
+    transition: all 0.3s ease;
+}
+
+.filter-btn:hover {
+    border-color: #667eea;
+    color: #667eea;
+}
+
+.filter-btn.active {
+    background: #667eea;
+    border-color: #667eea;
+    color: white;
+}
+
 .shirts-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -144,41 +192,21 @@
     object-fit: cover;
 }
 
-.like-btn {
+.auction-badge {
     position: absolute;
-    bottom: 12px;
-    right: 12px;
-    background: white;
-    border: none;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    transition: all 0.2s ease;
-    flex-direction: column;
+    top: 8px;
+    left: 8px;
+    background: #10b981;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 20px;
     font-size: 0.75rem;
-    color: #666;
     font-weight: 600;
-    padding: 0;
+    z-index: 1;
 }
 
-.like-btn:hover {
-    transform: scale(1.1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.like-btn .heart {
-    font-size: 1.1rem;
-    line-height: 1;
-}
-
-.like-btn .like-count {
-    font-size: 0.65rem;
+.auction-badge-ended {
+    background: #8b5cf6;
 }
 
 .shirt-info {
@@ -266,6 +294,17 @@
 }
 
 @media (max-width: 768px) {
+    .shirts-filters {
+        gap: 8px;
+        margin-bottom: 25px;
+    }
+
+    .filter-btn {
+        padding: 8px 14px;
+        font-size: 0.85rem;
+        flex: 1 1 calc(50% - 4px);
+    }
+
     .shirts-grid {
         grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
         gap: 8px;
@@ -281,26 +320,135 @@
 }
 
 @media (max-width: 480px) {
+    .shirts-filters {
+        gap: 6px;
+        margin-bottom: 20px;
+    }
+
+    .filter-btn {
+        padding: 7px 12px;
+        font-size: 0.8rem;
+        flex: 1 1 calc(50% - 3px);
+        border-width: 1.5px;
+    }
+
+    .shirts-section {
+        padding: 15px;
+    }
+
     .shirts-grid {
         grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
     }
+}
+
+.no-results {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 20px;
+    color: #999;
+    font-size: 1.1rem;
 }
 </style>
 {% endblock %}
 
+{% block extra_js %}
 <script>
-function likeShirt(button) {
-    button.classList.toggle('liked');
-    const count = parseInt(button.querySelector('.like-count').textContent) || 0;
-    if (button.classList.contains('liked')) {
-        button.querySelector('.like-count').textContent = count + 1;
-        button.querySelector('.heart').textContent = '♥';
-        button.style.color = '#ef4444';
-    } else {
-        button.querySelector('.like-count').textContent = Math.max(0, count - 1);
-        button.querySelector('.heart').textContent = '♡';
-        button.style.color = '#666';
+function filterShirts(filterType) {
+    // Aggiorna i pulsanti attivi
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector('[data-filter="' + filterType + '"]').classList.add('active');
+
+    // Filtra le maglie
+    const shirts = document.querySelectorAll('.shirt-card');
+    let visibleCount = 0;
+
+    shirts.forEach(shirt => {
+        const hasAuction = shirt.getAttribute('data-auction') === 'yes';
+        const auctionStatus = shirt.getAttribute('data-auction-status');
+        let shouldShow = false;
+
+        if (filterType === 'all') {
+            shouldShow = true;
+        } else if (filterType === 'auction') {
+            shouldShow = hasAuction && auctionStatus === 'active';
+        } else if (filterType === 'ended') {
+            shouldShow = hasAuction && auctionStatus === 'ended';
+        } else if (filterType === 'no-auction') {
+            shouldShow = !hasAuction;
+        }
+
+        if (shouldShow) {
+            shirt.style.display = '';
+            visibleCount++;
+        } else {
+            shirt.style.display = 'none';
+        }
+    });
+
+    // Mostra messaggio se non ci sono risultati
+    const grid = document.querySelector('.shirts-grid');
+    let noResults = grid.querySelector('.no-results');
+    if (visibleCount === 0) {
+        if (!noResults) {
+            noResults = document.createElement('div');
+            noResults.className = 'no-results';
+            noResults.textContent = 'Nessuna maglia trovata con questo filtro.';
+            grid.appendChild(noResults);
+        }
+        noResults.style.display = '';
+    } else if (noResults) {
+        noResults.style.display = 'none';
     }
 }
+
+// Polling dinamico per le aste
+document.addEventListener('DOMContentLoaded', function() {
+    const pollInterval = 2000; // 2 secondi
+    
+    // Trova tutte le carte con aste attive
+    const astaCards = document.querySelectorAll('.shirt-card[data-asta-id]');
+    
+    astaCards.forEach(card => {
+        const astaId = card.getAttribute('data-asta-id');
+        
+        function updateAuctionData() {
+            fetch('/api/asta/' + astaId)
+                .then(response => response.json())
+                .then(data => {
+                    // Aggiorna il prezzo
+                    const priceElement = card.querySelector('.price-main-' + astaId);
+                    if (priceElement && data.offerta_attuale !== undefined) {
+                        priceElement.textContent = '€ ' + data.offerta_attuale.toFixed(2);
+                    }
+                    
+                    // Aggiorna il badge (se l'asta è finita)
+                    const badge = card.querySelector('.auction-badge-' + astaId);
+                    if (badge) {
+                        if (data.auction_ended) {
+                            badge.textContent = '✓ Asta Terminata';
+                            badge.classList.add('auction-badge-ended');
+                            card.setAttribute('data-auction-status', 'ended');
+                        } else {
+                            badge.textContent = '🎯 Asta in corso';
+                            badge.classList.remove('auction-badge-ended');
+                            card.setAttribute('data-auction-status', 'active');
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Errore nel recupero dei dati dell\'asta ' + astaId + ':', error);
+                });
+        }
+        
+        // Avvia subito e poi ogni 2 secondi
+        updateAuctionData();
+        setInterval(updateAuctionData, pollInterval);
+    });
+});
 </script>
+{% endblock %}
+
 

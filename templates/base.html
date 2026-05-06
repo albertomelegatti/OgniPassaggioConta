@@ -19,9 +19,9 @@
                 <li><a href="#contact">Contatti</a></li>
             </ul>
             <div class="nav-auth-buttons">
-                {% if session.get('user_id') %}
-                    <span class="user-greeting">👤 {{ session.get('user_id') }}</span>
-                    {% if session.get('permessi') == 'admin' %}
+                {% if session.get('logged_in') %}
+                    <span class="user-greeting">👤 {{ session.get('username') }}</span>
+                    {% if session.get('permessi') in ['admin', 'superAdmin'] %}
                         <a href="{{ url_for('admin.dashboard') }}" class="btn-admin">Admin</a>
                     {% endif %}
                     <a href="{{ url_for('logout') }}" class="btn-logout">Logout</a>
@@ -52,8 +52,7 @@
 
     <footer>
         <div class="container">
-            <p>Fatto con amore dalla crew locale 🖤</p>
-            <p style="font-size: 0.8rem; margin-top: 8px; opacity: 0.8;">P.IVA: xxx | © 2026 Ogni Passaggio Conta</p>
+            <p style="font-size: 0.8rem; margin-top: 8px; opacity: 0.8;">Supporto | © 2026 Ogni Passaggio Conta</p>
         </div>
     </footer>
 

@@ -568,7 +568,7 @@
                     <span class="auction-label">Asta Attiva</span>
                     <div class="auction-value">🔥 In Corso</div>
                     {% if shirt.current_winner %}
-                    <p class="price-subtext">
+                    <p class="price-subtext current-winner-text">
                         <strong>Vincitore attuale:</strong> {{ shirt.current_winner }}
                     </p>
                     {% endif %}
@@ -583,8 +583,8 @@
 
                 <!-- Action Buttons -->
                 {% if shirt.has_auction %}
-                    {% if session.get('user_id') %}
-                    <div class="offer-form">
+                    {% if session.get('logged_in') %}
+                    <div class="offer-form" {% if shirt.id %}data-asta-id="{{ shirt.id }}"{% endif %}>
                         <form id="offerForm" method="POST" action="{{ url_for('make_offer', asta_id=shirt.id) }}">
                             <h3 class="section-title">💰 Fai un'Offerta</h3>
                             <div class="form-group">
@@ -647,6 +647,50 @@
         document.body.appendChild(form);
         form.submit();
     }
+
+    // Polling dinamico per l'offerta attuale
+    document.addEventListener('DOMContentLoaded', function() {
+        var offerFormElement = document.querySelector('.offer-form[data-asta-id]');
+        if (offerFormElement) {
+            var astaId = offerFormElement.getAttribute('data-asta-id');
+            var pollInterval = 2000;
+            
+            function updateAuctionData() {
+                fetch('/api/asta/' + astaId)
+                    .then(response => response.json())
+                    .then(data => {
+                        const priceElement = document.querySelector('.price-value');
+                        if (priceElement && data.offerta_attuale !== undefined) {
+                            priceElement.textContent = '€ ' + data.offerta_attuale.toFixed(2);
+                        }
+                        
+                        const minimoElement = document.querySelector('.form-helper');
+                        if (minimoElement && data.minimo_offerta !== undefined) {
+                            minimoElement.textContent = 'Minimo: € ' + data.minimo_offerta.toFixed(2);
+                        }
+                        
+                        const inputOfferta = document.querySelector('input[name="offerta"]');
+                        if (inputOfferta && data.minimo_offerta !== undefined) {
+                            inputOfferta.min = data.minimo_offerta.toFixed(2);
+                            inputOfferta.placeholder = 'Es. ' + data.minimo_offerta.toFixed(2);
+                        }
+                        
+                        // Aggiorna il vincitore attuale
+                        const winnerText = document.querySelector('.current-winner-text');
+                        if (winnerText && data.vincitore_attuale) {
+                            winnerText.innerHTML = '<strong>Vincitore attuale:</strong> ' + data.vincitore_attuale;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Errore nel recupero dei dati dell\'asta:', error);
+                    });
+            }
+            
+            // Avvia subito e poi ogni 2 secondi
+            updateAuctionData();
+            setInterval(updateAuctionData, pollInterval);
+        }
+    });
 </script>
 
 {% endblock %}

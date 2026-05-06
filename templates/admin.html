@@ -18,26 +18,14 @@
                     <a href="{{ url_for('admin.maglie') }}" class="admin-link">Vai →</a>
                 </div>
 
-                <div class="admin-card">
-                    <div class="card-icon">🎯</div>
-                    <h3>Aste</h3>
-                    <p>Crea e monitora le aste</p>
-                    <a href="#" class="admin-link">Vai →</a>
-                </div>
-
+                {% if session.get('permessi') == 'superAdmin' %}
                 <div class="admin-card">
                     <div class="card-icon">👤</div>
                     <h3>Utenti</h3>
                     <p>Gestisci gli utenti</p>
-                    <a href="#" class="admin-link">Vai →</a>
+                    <a href="{{ url_for('admin.users') }}" class="admin-link">Vai →</a>
                 </div>
-
-                <div class="admin-card">
-                    <div class="card-icon">📊</div>
-                    <h3>Statistiche</h3>
-                    <p>Visualizza i dati</p>
-                    <a href="#" class="admin-link">Vai →</a>
-                </div>
+                {% endif %}
             </div>
 
             <div class="admin-stats">
@@ -45,19 +33,15 @@
                 <div class="stats-grid">
                     <div class="stat-box">
                         <div class="stat-label">Maglie Totali</div>
-                        <div class="stat-value">--</div>
+                        <div class="stat-value">{{ total_shirts }}</div>
                     </div>
                     <div class="stat-box">
                         <div class="stat-label">Aste Attive</div>
-                        <div class="stat-value">--</div>
+                        <div class="stat-value">{{ active_auctions }}</div>
                     </div>
                     <div class="stat-box">
                         <div class="stat-label">Utenti</div>
-                        <div class="stat-value">--</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-label">Offerte Totali</div>
-                        <div class="stat-value">--</div>
+                        <div class="stat-value">{{ total_users }}</div>
                     </div>
                 </div>
             </div>
