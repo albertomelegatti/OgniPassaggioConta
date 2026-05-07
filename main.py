@@ -65,12 +65,12 @@ with app.app_context():
 
 @app.route('/')
 def landing():
-    return render_template('index.html')
+    return render_template('index.html', username=session.get('username'))
 
 
 @app.route('/sports')
 def sports():
-    return render_template('sports.html')
+    return render_template('sports.html', username=session.get('username'))
 
 
 @app.route('/shirts/<sport>')
@@ -82,7 +82,7 @@ def shirts(sport):
     shirts = []
     try:
         cur.execute('''
-                       SELECT asta.id, asta.data_inizio, asta.data_fine, asta.offerta_attuale, asta.vincitore_attuale, 
+                       SELECT asta.id, asta.data_inizio, asta.data_fine, asta.offerta_attuale, asta.vincitore_attuale, asta.stato, 
                               maglia.id as maglia_id, maglia.titolo, maglia.descrizione, maglia.prezzo_base, maglia.sport, maglia.foto
                        FROM maglia
                        LEFT JOIN asta ON asta.id_maglia = maglia.id
@@ -113,6 +113,11 @@ def shirts(sport):
             if not foto_list:
                 foto_list = [f'https://via.placeholder.com/300x400?text={shirt["titolo"].replace(" ", "+")}']
             
+            # Controlla lo stato dell'asta
+            auction_ended = False
+            if shirt['id'] is not None and shirt['stato'] is not None:
+                auction_ended = shirt['stato'] == 'terminata'
+            
             shirts.append({
                 'id': shirt['id'],
                 'maglia_id': shirt['maglia_id'],
@@ -122,6 +127,7 @@ def shirts(sport):
                 'end_time': formatta_data(shirt['data_fine']),
                 'current_winner': shirt['vincitore_attuale'],
                 'has_auction': shirt['id'] is not None,
+                'auction_ended': auction_ended,
                 'image': foto_list[0]  # Prima foto per la preview
             })
             
@@ -132,7 +138,7 @@ def shirts(sport):
     finally:
         release_connection(conn, cur)
     
-    return render_template('shirts.html', sport=sport, shirts=shirts)
+    return render_template('shirts.html', sport=sport, shirts=shirts, username=session.get('username'))
 
 
 
@@ -145,7 +151,7 @@ def shirt_detail(maglia_id):
     try:
         # Fetch shirt details
         cur.execute('''
-            SELECT asta.id, asta.data_inizio, asta.data_fine, asta.offerta_attuale, asta.vincitore_attuale, 
+            SELECT asta.id, asta.data_inizio, asta.data_fine, asta.offerta_attuale, asta.vincitore_attuale, asta.stato, 
                    maglia.id as maglia_id, maglia.titolo, maglia.descrizione, maglia.prezzo_base, 
                    maglia.sport, maglia.foto
             FROM maglia
@@ -170,7 +176,8 @@ def shirt_detail(maglia_id):
             'current_winner': shirt_row['vincitore_attuale'],
             'has_auction': shirt_row['id'] is not None,
             'sport': shirt_row['sport'],
-            'images': []
+            'images': [],
+            'auction_ended': shirt_row['id'] is not None and shirt_row['stato'] == 'terminata'
         }
         
         # Parsa le foto dal database (formato JSON array, con fallback su virgole)
@@ -199,7 +206,7 @@ def shirt_detail(maglia_id):
     finally:
         release_connection(conn, cur)
     
-    return render_template('single_shirt.html', shirt=shirt)
+    return render_template('single_shirt.html', shirt=shirt, username=session.get('username'))
 
 
 
@@ -223,11 +230,15 @@ def get_auction_data(asta_id):
         if not asta:
             return jsonify({'error': 'Asta non trovata'}), 404
         
+        # Calcola lo stato dell'asta
+        stato = 'conclusa' if asta['data_fine'] and asta['data_fine'] <= datetime.now(asta['data_fine'].tzinfo or None) else 'in_corso'
+        
         return jsonify({
             'offerta_attuale': float(asta['offerta_attuale']) if asta['offerta_attuale'] else 0,
             'vincitore_attuale': asta['vincitore_attuale'],
             'data_fine': asta['data_fine'].isoformat() if asta['data_fine'] else None,
-            'minimo_offerta': float(asta['offerta_attuale']) + 1 if asta['offerta_attuale'] else 1
+            'minimo_offerta': float(asta['offerta_attuale']) + 1 if asta['offerta_attuale'] else 1,
+            'stato': stato
         })
         
     except Exception as e:
@@ -322,32 +333,30 @@ def start_auction(maglia_id):
             flash('Maglia non trovata', 'error')
             return redirect(url_for('sports'))
         
-        # Tenta di inserire atomicamente - se già esiste, avrà errore
+        # Verifica se esiste già un'asta per questa maglia
+        cur.execute('SELECT id FROM asta WHERE id_maglia = %s', (maglia_id,))
+        asta_esistente = cur.fetchone()
+        
+        if asta_esistente:
+            flash(f'Un\'asta esiste già per la maglia "{maglia["titolo"]}"', 'warning')
+            return redirect(request.referrer or url_for('sports'))
+        
+        # Se non esiste, crea la nuova asta
         try:
             cur.execute('''
-                INSERT INTO asta (id_maglia, data_inizio, data_fine, offerta_attuale)
-                VALUES (%s, NOW() AT TIME ZONE 'Europe/Rome', (NOW() AT TIME ZONE 'Europe/Rome') + INTERVAL '2 hours', %s)
-                ON CONFLICT (id_maglia) DO NOTHING
+                INSERT INTO asta (id_maglia, data_inizio, data_fine, offerta_attuale, stato, vincitore_attuale)
+                VALUES (%s, NOW() AT TIME ZONE 'Europe/Rome', (NOW() AT TIME ZONE 'Europe/Rome') + INTERVAL '2 hours', %s, 'in_corso', %s)
                 RETURNING id
-            ''', (maglia_id, maglia['prezzo_base']))
+            ''', (maglia_id, maglia['prezzo_base'], session.get('username')))
             
             result = cur.fetchone()
-            
-            if not result:
-                # Un'asta esiste già per questa maglia
-                flash(f'Un\'asta esiste già per la maglia "{maglia["titolo"]}"', 'warning')
-                return redirect(request.referrer or url_for('sports'))
-            
             conn.commit()
             flash(f'Asta avviata per "{maglia["titolo"]}" - Scade tra 2 ore', 'success')
             
         except Exception as e:
             if conn:
                 conn.rollback()
-            if 'unique' in str(e).lower():
-                flash(f'Un\'asta esiste già per la maglia "{maglia["titolo"]}"', 'warning')
-            else:
-                raise
+            raise
         
     except Exception as e:
         if conn:
@@ -420,7 +429,7 @@ def login():
         
         return redirect(url_for('login'))
     
-    return render_template('login.html')
+    return render_template('login.html', username=session.get('username'))
 
 
 @app.route('/logout')
@@ -458,7 +467,7 @@ def signup():
             errors.append("Le password non corrispondono")
         
         if errors:
-            return render_template('signup.html', error=' | '.join(errors))
+            return render_template('signup.html', error=' | '.join(errors), username=session.get('username'))
         
         conn = None
         cur = None
@@ -486,9 +495,9 @@ def signup():
                     conn.rollback()
                 # Controlla quale vincolo UNIQUE è stato violato
                 if 'email' in str(e).lower():
-                    return render_template('signup.html', error='Email già in uso')
+                    return render_template('signup.html', error='Email già in uso', username=session.get('username'))
                 elif 'username' in str(e).lower():
-                    return render_template('signup.html', error='Username già in uso')
+                    return render_template('signup.html', error='Username già in uso', username=session.get('username'))
                 else:
                     raise
             
@@ -500,15 +509,12 @@ def signup():
                     pass
             print(f"Error during signup: {e}")
             flash('Errore durante la registrazione. Riprova più tardi.', 'error')
-            return render_template('signup.html')
+            return render_template('signup.html', username=session.get('username'))
         
         finally:
             release_connection(conn, cur)
     
-    return render_template('signup.html')
-
-
-
+    return render_template('signup.html', username=session.get('username'))
 
 
 

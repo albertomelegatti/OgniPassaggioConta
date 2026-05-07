@@ -424,10 +424,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         priceElement.textContent = '€ ' + data.offerta_attuale.toFixed(2);
                     }
                     
-                    // Aggiorna il badge (se l'asta è finita)
+                    // Aggiorna il badge basandosi sullo stato dell'asta
                     const badge = card.querySelector('.auction-badge-' + astaId);
                     if (badge) {
-                        if (data.auction_ended) {
+                        if (data.stato === 'conclusa') {
                             badge.textContent = '✓ Asta Terminata';
                             badge.classList.add('auction-badge-ended');
                             card.setAttribute('data-auction-status', 'ended');

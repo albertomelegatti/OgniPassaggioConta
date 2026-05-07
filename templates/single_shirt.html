@@ -602,7 +602,7 @@
                     <a href="{{ url_for('login') }}" class="btn-primary">Accedi per Offrire</a>
                     {% endif %}
                 {% else %}
-                    {% if session.get('user_id') %}
+                    {% if session.get('logged_in') %}
                     <button class="btn-primary" onclick="avviaAsta()">🚀 Avvia Asta</button>
                     {% else %}
                     <a href="{{ url_for('login') }}" class="btn-primary">Accedi per Avviare Asta</a>
