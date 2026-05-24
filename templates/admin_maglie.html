@@ -124,8 +124,9 @@
 
         .admin-header h1 {
             font-size: 2.2rem;
-            color: #222;
+            color: var(--primary-color);
             margin-bottom: 10px;
+            font-family: 'Playfair Display', serif;
         }
 
         .admin-header p {
@@ -146,7 +147,7 @@
 
         .btn-toggle-form {
             padding: 12px 24px;
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            background: linear-gradient(135deg, var(--primary-color) 0%, #5A3D6B 100%);
             color: white;
             border: none;
             border-radius: 8px;
@@ -154,14 +155,14 @@
             font-size: 1rem;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+            box-shadow: 0 4px 12px rgba(107, 76, 122, 0.25);
             white-space: nowrap;
             align-self: flex-end;
         }
 
         .btn-toggle-form:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+            box-shadow: 0 6px 20px rgba(107, 76, 122, 0.35);
         }
 
         .btn-toggle-form:active {
@@ -200,11 +201,12 @@
 
         .form-section h2 {
             font-size: 1.5rem;
-            color: #222;
+            color: var(--primary-color);
             margin-bottom: 24px;
             display: flex;
             align-items: center;
             gap: 8px;
+            font-family: 'Playfair Display', serif;
         }
 
         .maglia-form {
@@ -240,8 +242,8 @@
         .form-group textarea:focus,
         .form-group select:focus {
             outline: none;
-            border-color: #10b981;
-            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+            border-color: var(--primary-dark);
+            box-shadow: 0 0 0 3px rgba(196, 30, 58, 0.1);
         }
 
         .form-row {
@@ -258,18 +260,18 @@
 
         /* FILE UPLOAD */
         .file-upload-area {
-            border: 2px dashed #10b981;
+            border: 2px dashed var(--primary-color);
             border-radius: 8px;
             padding: 20px;
-            background: #f0fdf4;
+            background: rgba(107, 76, 122, 0.05);
             text-align: center;
             cursor: pointer;
             transition: all 0.3s ease;
         }
 
         .file-upload-area:hover {
-            border-color: #059669;
-            background: #dcfce7;
+            border-color: var(--primary-dark);
+            background: rgba(107, 76, 122, 0.1);
         }
 
         .file-input {
@@ -285,7 +287,7 @@
 
         .file-upload-label span {
             font-weight: 600;
-            color: #10b981;
+            color: var(--primary-color);
             font-size: 1rem;
         }
 

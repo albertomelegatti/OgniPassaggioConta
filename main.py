@@ -29,7 +29,7 @@ if db_url and db_url.startswith("postgres://"):
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_size': 20,
+    'pool_size': 30,  # Aumentato da 20 per distribuire meglio il carico
     'pool_recycle': 3600,
     'pool_pre_ping': True,
 }
@@ -54,7 +54,6 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 
 Session(app)
 
-# Registra blueprints
 app.register_blueprint(admin_bp)
 
 # Crea la tabella delle sessioni al primo avvio
@@ -95,28 +94,13 @@ def shirts(sport):
         # LEFT JOIN restituisce tutte le maglie, anche quelle senza asta (asta.id sarà None)
         
         for shirt in shirts_raw:
-            # Parsa le foto: prova JSON, altrimenti virgola, altrimenti placeholder
-            foto_list = []
-            if shirt['foto']:
-                try:
-                    # Prova prima come array JSON
-                    foto_list = json.loads(shirt['foto']) if isinstance(shirt['foto'], str) else shirt['foto']
-                    # Rimuovi le virgolette doppie dai link (se presenti)
-                    foto_list = [url.strip().strip('"') for url in foto_list]
-                except (json.JSONDecodeError, TypeError):
-                    # Se non è JSON valido, prova come stringa separata da virgole
-                    try:
-                        foto_list = [f.strip().strip('"') for f in shirt['foto'].split(',') if f.strip()]
-                    except:
-                        foto_list = []
-            
-            if not foto_list:
-                foto_list = [f'https://via.placeholder.com/300x400?text={shirt["titolo"].replace(" ", "+")}']
+            # Parsa foto con funzione ottimizzata
+            foto_list = parse_foto_urls(shirt['foto'], shirt['titolo'])
             
             # Controlla lo stato dell'asta
             auction_ended = False
             if shirt['id'] is not None and shirt['stato'] is not None:
-                auction_ended = shirt['stato'] == 'terminata'
+                auction_ended = shirt['stato'] == 'conclusa'
             
             shirts.append({
                 'id': shirt['id'],
@@ -176,27 +160,9 @@ def shirt_detail(maglia_id):
             'current_winner': shirt_row['vincitore_attuale'],
             'has_auction': shirt_row['id'] is not None,
             'sport': shirt_row['sport'],
-            'images': [],
-            'auction_ended': shirt_row['id'] is not None and shirt_row['stato'] == 'terminata'
+            'images': parse_foto_urls(shirt_row['foto'], shirt_row['titolo']),
+            'auction_ended': shirt_row['id'] is not None and shirt_row['stato'] == 'conclusa'
         }
-        
-        # Parsa le foto dal database (formato JSON array, con fallback su virgole)
-        if shirt_row['foto']:
-            try:
-                # Prova prima come array JSON
-                shirt['images'] = json.loads(shirt_row['foto']) if isinstance(shirt_row['foto'], str) else shirt_row['foto']
-                # Rimuovi le virgolette doppie dai link (se presenti)
-                shirt['images'] = [url.strip().strip('"') for url in shirt['images']]
-            except (json.JSONDecodeError, TypeError):
-                # Se non è JSON valido, prova come stringa separata da virgole
-                try:
-                    shirt['images'] = [f.strip().strip('"') for f in shirt_row['foto'].split(',') if f.strip()]
-                except:
-                    shirt['images'] = []
-        
-        # Se non ci sono foto, usa placeholder
-        if not shirt['images']:
-            shirt['images'] = [f'https://via.placeholder.com/400x500?text={shirt_row["titolo"].replace(" ", "+")}']
         
     except Exception as e:
         print(f"Error fetching shirt details: {e}")
@@ -214,13 +180,14 @@ def shirt_detail(maglia_id):
 
 @app.route('/api/asta/<int:asta_id>')
 def get_auction_data(asta_id):
-    """Endpoint API che restituisce i dati aggiornati dell'asta in JSON"""
+    
+    # Endpoint API che restituisce i dati aggiornati dell'asta in JSON
     conn = get_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     
     try:
         cur.execute('''
-            SELECT offerta_attuale, vincitore_attuale, data_fine
+            SELECT offerta_attuale, vincitore_attuale, data_fine, stato
             FROM asta
             WHERE id = %s
         ''', (asta_id,))
@@ -230,15 +197,13 @@ def get_auction_data(asta_id):
         if not asta:
             return jsonify({'error': 'Asta non trovata'}), 404
         
-        # Calcola lo stato dell'asta
-        stato = 'conclusa' if asta['data_fine'] and asta['data_fine'] <= datetime.now(asta['data_fine'].tzinfo or None) else 'in_corso'
         
         return jsonify({
             'offerta_attuale': float(asta['offerta_attuale']) if asta['offerta_attuale'] else 0,
             'vincitore_attuale': asta['vincitore_attuale'],
             'data_fine': asta['data_fine'].isoformat() if asta['data_fine'] else None,
             'minimo_offerta': float(asta['offerta_attuale']) + 1 if asta['offerta_attuale'] else 1,
-            'stato': stato
+            'stato': asta['stato']
         })
         
     except Exception as e:
@@ -272,19 +237,21 @@ def make_offer(asta_id):
             UPDATE asta 
             SET offerta_attuale = %s, vincitore_attuale = %s, 
                 data_fine = (NOW() AT TIME ZONE 'Europe/Rome') + INTERVAL '2 hours'
-            WHERE id = %s AND (%s >= COALESCE(offerta_attuale, 0) + 1)
+            WHERE id = %s AND stato = 'in_corso' AND (%s >= COALESCE(offerta_attuale, 0) + 1)
             RETURNING offerta_attuale, data_fine
         ''', (offerta, session.get('username'), asta_id, offerta))
         
         updated_auction = cur.fetchone()
         
         if not updated_auction:
-            # Recupera il valore attuale per il messaggio d'errore
-            cur.execute('SELECT COALESCE(offerta_attuale, 0) as offerta_attuale FROM asta WHERE id = %s', (asta_id,))
+            # Recupera il valore attuale e lo stato per il messaggio d'errore
+            cur.execute('SELECT COALESCE(offerta_attuale, 0) as offerta_attuale, stato FROM asta WHERE id = %s', (asta_id,))
             asta_data = cur.fetchone()
             
             if not asta_data:
                 flash('Asta non trovata', 'error')
+            elif asta_data['stato'] != 'in_corso':
+                flash('Questa asta è già conclusa', 'error')
             else:
                 offerta_attuale = asta_data['offerta_attuale']
                 flash(f'L\'offerta deve essere almeno € {offerta_attuale + 1:.2f}', 'error')
@@ -472,7 +439,6 @@ def signup():
         conn = None
         cur = None
         try:
-            # Hash della password
             password_hash = generate_password_hash(password)
             
             conn = get_connection()
@@ -541,9 +507,52 @@ def formatta_data(data_input):
     return str(data_input)
 
 
+def parse_foto_urls(foto_raw, titolo_maglia=""):
+    """Parsa i link foto da formato JSON o CSV. Fallback a placeholder.
+    
+    Args:
+        foto_raw: Stringa JSON array o CSV di URL
+        titolo_maglia: Titolo per generare placeholder
+    
+    Returns:
+        Lista di URL puliti, almeno uno (placeholder se vuoto)
+    """
+    if not foto_raw:
+        return [get_placeholder_image(titolo_maglia)]
+    
+    foto_list = []
+    
+    try:
+        # Prova JSON
+        foto_list = json.loads(foto_raw) if isinstance(foto_raw, str) else foto_raw
+    except (json.JSONDecodeError, TypeError):
+        # Fallback: prova CSV
+        try:
+            foto_list = [f.strip() for f in foto_raw.split(',') if f.strip()]
+        except:
+            foto_list = []
+    
+    # Pulisci ogni URL una sola volta (strip + quote removal)
+    foto_list = [url.strip().strip('"') for url in foto_list if url]
+    
+    # Se vuoto, usa placeholder
+    return foto_list or [get_placeholder_image(titolo_maglia)]
+
+
+def get_placeholder_image(titolo_maglia):
+    """Genera URL placeholder per immagine manca."""
+    return f'https://via.placeholder.com/300x400?text={titolo_maglia.replace(" ", "+")}'
+
+
 @app.route('/health')
 def health():
     return {'status': 'ok'}, 200
+
+
+@app.route('/coffee')
+def coffee():
+    """Pagina per supportare il progetto con PayPal"""
+    return render_template('coffee.html', username=session.get('username'))
 
 
 if __name__ == "__main__":

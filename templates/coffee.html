@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <section class="coffee-section">
+        <div class="container">
+            <!-- Header Principal -->
+            <div class="coffee-hero">
+                <h1>1 Dev, 0 Investitori.</h1>
+            </div>
+
+            <!-- Payment Options -->
+            <div class="payment-options">
+                <a href="{{ paypal_link | default('https://paypal.me/melegattialberto') }}" 
+                   target="_blank" class="payment-card paypal-card">
+                    <div class="paypal-card-top">
+                        <div class="coffee-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-coffee">
+                                <path d="M10 2v2"></path>
+                                <path d="M14 2v2"></path>
+                                <path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"></path>
+                                <path d="M6 2v2"></path>
+                            </svg>
+                        </div>
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg" alt="PayPal" class="paypal-logo-top">
+                    </div>
+                    <h3 class="paypal-text">Offrimi un Caffè</h3>
+                    <div class="arrow-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up-right">
+                            <path d="M7 7h10v10"></path>
+                            <path d="M7 17 17 7"></path>
+                        </svg>
+                    </div>
+                </a>
+            </div>
+
+            <p class="footer-text">Grazie per il supporto</p>
+        </div>
+    </section>
+
+    <style>
+        .coffee-section {
+            padding: 30px 20px;
+            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .coffee-hero {
+            text-align: center;
+            margin-bottom: 40px;
+            color: #1f2937;
+        }
+
+        .coffee-hero h1 {
+            font-size: 3.5em;
+            font-weight: 900;
+            margin: 0 0 8px 0;
+            color: var(--primary-color);
+            letter-spacing: -1.5px;
+            line-height: 1;
+            font-family: 'Playfair Display', serif;
+        }
+
+        .coffee-hero h2 {
+            font-size: 2.2em;
+            font-weight: 600;
+            margin: 0;
+            color: var(--primary-dark);
+            letter-spacing: 1px;
+            font-family: 'Playfair Display', serif;
+        }
+
+        .developer-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 40px;
+            margin-bottom: 50px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .dev-content h3 {
+            font-size: 1.3em;
+            color: #1f2937;
+            margin: 0 0 20px 0;
+            font-weight: 600;
+        }
+
+        .dev-content p {
+            color: #6b7280;
+            line-height: 1.8;
+            margin: 0 0 15px 0;
+            font-size: 0.95em;
+        }
+
+        .dev-content p:last-child {
+            margin-bottom: 0;
+        }
+
+        .fuel-section {
+            text-align: center;
+            margin-bottom: 50px;
+            color: #1f2937;
+        }
+
+        .fuel-section h3 {
+            font-size: 1.8em;
+            font-weight: 700;
+            margin: 0 0 15px 0;
+            color: #1f2937;
+        }
+
+        .fuel-section p {
+            font-size: 0.95em;
+            color: #6b7280;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .payment-options {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 25px;
+            margin-bottom: 50px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            place-items: center;
+        }
+
+        .payment-card {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 30px;
+            text-decoration: none;
+            color: #1f2937;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .paypal-card {
+            border: none;
+            background: linear-gradient(135deg, #003087 0%, #0070ba 100%);
+            padding: 20px 24px;
+            border-radius: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 12px;
+            position: relative;
+            min-height: 160px;
+            text-decoration: none;
+            color: white;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0, 112, 186, 0.3);
+            width: 100%;
+        }
+
+        .paypal-card:hover {
+            transform: scale(1.02);
+            box-shadow: 0 15px 40px rgba(0, 112, 186, 0.4);
+        }
+
+        .paypal-card:active {
+            transform: scale(0.95);
+        }
+
+        .paypal-card-top {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+        }
+
+        .coffee-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .coffee-icon svg {
+            width: 24px;
+            height: 24px;
+            stroke: white;
+            fill: white;
+        }
+
+        .paypal-logo-top {
+            height: 28px;
+            width: auto;
+            filter: brightness(0) invert(1);
+            opacity: 0.9;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+
+        .paypal-text {
+            grid-column: 1 / -1;
+            font-size: 1.6em;
+            font-weight: 900;
+            margin: 0;
+            color: white;
+            line-height: 1.2;
+            text-align: left;
+            align-self: center;
+        }
+
+        .arrow-icon {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 28px;
+            height: 28px;
+            color: rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .arrow-icon svg {
+            width: 28px;
+            height: 28px;
+            stroke: currentColor;
+        }
+
+        .paypal-card:hover .arrow-icon {
+            color: rgba(255, 255, 255, 0.8);
+            transform: translate(2px, -2px);
+        }
+
+        .payment-status {
+            font-size: 0.8em;
+            color: #9ca3af;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: none;
+        }
+
+        .footer-text {
+            text-align: center;
+            color: #9ca3af;
+            font-size: 0.9em;
+            margin: 0;
+        }
+
+        @media (max-width: 600px) {
+            .coffee-section {
+                padding: 15px 20px;
+                min-height: auto;
+            }
+
+            .coffee-hero {
+                margin-bottom: 25px;
+            }
+
+            .coffee-hero h1,
+            .coffee-hero h2 {
+                font-size: 1.8em;
+            }
+
+            .developer-card {
+                padding: 25px;
+                margin-bottom: 40px;
+            }
+
+            .fuel-section h3 {
+                font-size: 1.4em;
+            }
+
+            .paypal-card {
+                min-height: 120px;
+                padding: 14px 18px;
+                gap: 10px;
+            }
+
+            .coffee-icon {
+                width: 36px;
+                height: 36px;
+            }
+
+            .coffee-icon svg {
+                width: 20px;
+                height: 20px;
+            }
+
+            .paypal-logo-top {
+                height: 22px;
+            }
+
+            .paypal-text {
+                font-size: 1.3em;
+            }
+
+            .arrow-icon {
+                width: 22px;
+                height: 22px;
+                bottom: 12px;
+                right: 12px;
+            }
+
+            .arrow-icon svg {
+                width: 22px;
+                height: 22px;
+            }
+        }
+    </style>
+{% endblock %}

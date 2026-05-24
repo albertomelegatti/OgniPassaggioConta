@@ -73,7 +73,8 @@
         .auth-box h2 {
             margin: 0 0 10px 0;
             font-size: 1.8rem;
-            color: #222;
+            color: var(--primary-color);
+            font-family: 'Playfair Display', serif;
         }
 
         .auth-subtitle {
@@ -111,24 +112,26 @@
 
         .form-group input:focus {
             outline: none;
-            border-color: #10b981;
-            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+            border-color: var(--primary-dark);
+            box-shadow: 0 0 0 3px rgba(196, 30, 58, 0.1);
         }
 
         .auth-button {
             padding: 12px;
-            background: #10b981;
+            background: linear-gradient(135deg, var(--primary-dark) 0%, #A01728 100%);
             color: white;
             border: none;
             border-radius: 8px;
             font-weight: 600;
             font-size: 1rem;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(196, 30, 58, 0.25);
         }
 
         .auth-button:hover {
-            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(196, 30, 58, 0.35);
         }
 
         .auth-footer {
@@ -138,7 +141,7 @@
         }
 
         .auth-footer a {
-            color: #10b981;
+            color: var(--primary-dark);
             text-decoration: none;
             font-weight: 600;
         }

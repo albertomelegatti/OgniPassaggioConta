@@ -75,7 +75,7 @@
 {% block extra_css %}
 <style>
 .shirts-hero {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
     color: white;
     padding: 40px 20px;
     margin-bottom: 40px;
@@ -104,12 +104,15 @@
 .shirts-hero h1 {
     font-size: 2.2rem;
     margin: 10px 0;
+    font-family: 'Playfair Display', serif;
+    color: white;
 }
 
 .shirts-hero p {
     font-size: 1rem;
     opacity: 0.9;
     margin: 0;
+    color: rgba(255, 255, 255, 0.95);
 }
 
 .shirts-section {
@@ -143,13 +146,13 @@
 }
 
 .filter-btn:hover {
-    border-color: #667eea;
-    color: #667eea;
+    border-color: var(--primary-color);
+    color: var(--primary-color);
 }
 
 .filter-btn.active {
-    background: #667eea;
-    border-color: #667eea;
+    background: var(--primary-color);
+    border-color: var(--primary-color);
     color: white;
 }
 

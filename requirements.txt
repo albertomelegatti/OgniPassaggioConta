@@ -8,3 +8,5 @@ requests
 Flask-SQLAlchemy==3.1.1
 Pillow
 supabase
+Flask-Mail
+qrcode[pil]

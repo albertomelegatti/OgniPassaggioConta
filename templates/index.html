@@ -1,67 +1,100 @@
 {% extends "base.html" %}
 
+{% block extra_css %}
+<style>
+    .hero {
+        background: linear-gradient(135deg, #faf9f7 0%, #f5f1ed 100%);
+        padding: 60px 16px;
+        text-align: center;
+    }
+
+    .hero-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 30px;
+        max-width: 700px;
+        margin: 0 auto;
+    }
+
+    .hero-logo {
+        width: 100%;
+        max-width: 300px;
+        height: auto;
+        filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.08));
+    }
+
+    .hero h2 {
+        font-family: 'Playfair Display', serif;
+        font-size: 2.5rem;
+        font-weight: 900;
+        color: #6B4C7A;
+        letter-spacing: -1px;
+        line-height: 1.1;
+        margin: 0;
+    }
+
+    .hero p {
+        font-family: 'Lora', serif;
+        font-size: 1.2rem;
+        color: #6b7280;
+        line-height: 1.6;
+        margin: 0;
+    }
+
+    .cta-button {
+        background: linear-gradient(135deg, #C41E3A 0%, #A01728 100%);
+        color: white;
+        padding: 16px 40px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        font-family: 'Lora', serif;
+        font-size: 1.1rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(196, 30, 58, 0.3);
+        display: inline-block;
+        border: none;
+        cursor: pointer;
+    }
+
+    .cta-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(196, 30, 58, 0.4);
+    }
+
+    @media (min-width: 768px) {
+        .hero {
+            padding: 100px 16px;
+        }
+
+        .hero-logo {
+            max-width: 400px;
+        }
+
+        .hero h2 {
+            font-size: 3.5rem;
+        }
+
+        .hero p {
+            font-size: 1.4rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
     <section id="home" class="hero">
-        <div class="container">
+        <div class="hero-content">
+            <img src="{{ url_for('static', filename='images/logo/logo.jpg') }}" alt="Ogni Passaggio Conta" class="hero-logo">
             <h2>Magliette che Hanno Storie</h2>
-            <p>Le tue magliette preferite in asta tra gente che sa di cosa parla 🎽</p>
             <a href="/sports" class="cta-button">Vedi le Maglie</a>
-        </div>
-    </section>
-
-    <section id="aste" class="about">
-        <div class="container">
-            <h2>Cosa Troverai Qui</h2>
-            <p>Magliette da gente vera, della nostra comunità.</p>
-            <div class="features">
-                <div class="feature-card">
-                    <h3>✌️ Genuine</h3>
-                    <p>Niente fake. Tutte verificate di persona</p>
-                </div>
-                <div class="feature-card">
-                    <h3>🔥 Live</h3>
-                    <p>Vedi le offerte in diretta, al secondo</p>
-                </div>
-                <div class="feature-card">
-                    <h3>👕 Rare</h3>
-                    <p>Pezzi che non trovi da nessun'altra parte</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section id="come-funziona" class="how-it-works">
-        <div class="container">
-            <h2>4 Semplici Step</h2>
-            <div class="steps">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <h3>Iscriviti</h3>
-                    <p>Tipo 30 secondi e sei dentro</p>
-                </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <h3>Guarda</h3>
-                    <p>Scorri le magliette e trova la tua</p>
-                </div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <h3>Offri</h3>
-                    <p>Fai la tua mossa e supera gli altri</p>
-                </div>
-                <div class="step">
-                    <div class="step-number">4</div>
-                    <h3>Vinci!</h3>
-                    <p>La maglietta è tua</p>
-                </div>
-            </div>
         </div>
     </section>
 
     <section id="contact" class="contact">
         <div class="container">
-            <h2>Dubbi? Domande?</h2>
-            <p><strong>WhatsApp:</strong> +39 123 456 7890</p>
+            <h2>Contatti?</h2>
             <p>
                 <a href="https://instagram.com/ognipassaggioconta" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; color: #e1306c; text-decoration: none; font-weight: 500; transition: opacity 0.3s;">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
@@ -69,6 +102,12 @@
                     </svg>
                     @ognipassaggioconta
                 </a>
+            </p>
+            <p style="margin-top: 20px;">
+                <a href="/coffee" style="display: inline-flex; align-items: center; gap: 8px; color: #8B4513; text-decoration: none; font-weight: 500; transition: opacity 0.3s;">
+                    Offrimi un caffè
+                </a>
+            </p>
             </p>
         </div>
     </section>

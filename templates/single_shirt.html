@@ -564,46 +564,60 @@
 
                 <!-- Auction Status -->
                 {% if shirt.has_auction %}
-                <div class="auction-info active">
-                    <span class="auction-label">Asta Attiva</span>
-                    <div class="auction-value">🔥 In Corso</div>
-                    {% if shirt.current_winner %}
-                    <p class="price-subtext current-winner-text">
-                        <strong>Vincitore attuale:</strong> {{ shirt.current_winner }}
-                    </p>
+                    {% if shirt.auction_ended %}
+                    <div class="auction-info" style="background: #fee2e2; border-color: #fca5a5;">
+                        <span class="auction-label" style="color: #991b1b;">Asta Conclusa</span>
+                        <div class="auction-value" style="color: #991b1b;">✅ Chiusa</div>
+                        {% if shirt.current_winner %}
+                        <p class="price-subtext">
+                            <strong>Vincitore:</strong> {{ shirt.current_winner }}
+                        </p>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="auction-info active">
+                        <span class="auction-label">Asta Attiva</span>
+                        <div class="auction-value">In Corso</div>
+                        {% if shirt.current_winner %}
+                        <p class="price-subtext current-winner-text">
+                            <strong>Vincitore attuale:</strong> {{ shirt.current_winner }}
+                        </p>
+                        {% endif %}
+                    </div>
                     {% endif %}
-                </div>
                 {% else %}
                 <div class="auction-info">
                     <span class="auction-label">Status</span>
-                    <div class="auction-value">⏳ Prossimamente</div>
+                    <div class="auction-value">Prossimamente</div>
                     <p class="price-subtext">L'asta non è ancora iniziata</p>
                 </div>
                 {% endif %}
 
                 <!-- Action Buttons -->
                 {% if shirt.has_auction %}
-                    {% if session.get('logged_in') %}
-                    <div class="offer-form" {% if shirt.id %}data-asta-id="{{ shirt.id }}"{% endif %}>
-                        <form id="offerForm" method="POST" action="{{ url_for('make_offer', asta_id=shirt.id) }}">
-                            <h3 class="section-title">💰 Fai un'Offerta</h3>
-                            <div class="form-group">
-                                <label class="form-label">Offerta (€)</label>
-                                <input type="number" name="offerta" class="form-input" step="0.01" min="{{ "%.2f"|format(shirt.current_price + 1.00) }}" placeholder="Es. {{ "%.2f"|format(shirt.current_price + 1.00) }}" required>
-                                <p class="form-helper">Minimo: € {{ "%.2f"|format(shirt.current_price + 1.00) }}</p>
-                            </div>
-                            <div class="form-buttons">
-                                <button type="submit" class="btn-primary">Invia Offerta</button>
-                                <button type="reset" class="btn-secondary">Annulla</button>
-                            </div>
-                        </form>
-                    </div>
-                    {% else %}
-                    <a href="{{ url_for('login') }}" class="btn-primary">Accedi per Offrire</a>
+                    {% if not shirt.auction_ended %}
+                        {% if session.get('logged_in') %}
+                        <div class="offer-form" {% if shirt.id %}data-asta-id="{{ shirt.id }}"{% endif %}>
+                            <form id="offerForm" method="POST" action="{{ url_for('make_offer', asta_id=shirt.id) }}">
+                                <h3 class="section-title">Fai un'Offerta</h3>
+                                <div class="form-group">
+                                    <label class="form-label">Offerta (€)</label>
+                                    <input type="number" name="offerta" class="form-input" step="0.01" min="{{ "%.2f"|format(shirt.current_price + 1.00) }}" placeholder="Es. {{ "%.2f"|format(shirt.current_price + 1.00) }}" required>
+                                    <p class="form-helper">Minimo: € {{ "%.2f"|format(shirt.current_price + 1.00) }}</p>
+                                </div>
+                                <div class="form-buttons">
+                                    <button type="submit" class="btn-primary">Invia Offerta</button>
+                                    <button type="reset" class="btn-secondary">Annulla</button>
+                                </div>
+                            </form>
+                        </div>
+                        {% else %}
+                        <a href="{{ url_for('login') }}" class="btn-primary">Accedi per Offrire</a>
+                        {% endif %}
                     {% endif %}
                 {% else %}
                     {% if session.get('logged_in') %}
-                    <button class="btn-primary" onclick="avviaAsta()">🚀 Avvia Asta</button>
+                    <button class="btn-primary" onclick="avviaAsta()">Avvia Asta</button>
                     {% else %}
                     <a href="{{ url_for('login') }}" class="btn-primary">Accedi per Avviare Asta</a>
                     {% endif %}
@@ -614,7 +628,7 @@
         <!-- Description Section -->
         {% if shirt.description %}
         <div class="description-section">
-            <h2 class="section-title">📝 Descrizione</h2>
+            <h2 class="section-title">Descrizione</h2>
             <p class="description-text">{{ shirt.description }}</p>
         </div>
         {% endif %}
@@ -654,11 +668,19 @@
         if (offerFormElement) {
             var astaId = offerFormElement.getAttribute('data-asta-id');
             var pollInterval = 2000;
+            var pollIntervalId = null;
             
             function updateAuctionData() {
                 fetch('/api/asta/' + astaId)
                     .then(response => response.json())
                     .then(data => {
+                        // Se l'asta è conclusa, ferma il polling e ricaricha la pagina
+                        if (data.stato === 'conclusa') {
+                            clearInterval(pollIntervalId);
+                            location.reload();
+                            return;
+                        }
+                        
                         const priceElement = document.querySelector('.price-value');
                         if (priceElement && data.offerta_attuale !== undefined) {
                             priceElement.textContent = '€ ' + data.offerta_attuale.toFixed(2);
@@ -688,7 +710,7 @@
             
             // Avvia subito e poi ogni 2 secondi
             updateAuctionData();
-            setInterval(updateAuctionData, pollInterval);
+            pollIntervalId = setInterval(updateAuctionData, pollInterval);
         }
     });
 </script>
