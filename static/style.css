@@ -68,19 +68,22 @@ h3 {
     align-items: center;
     padding: 1rem 16px;
     gap: 1rem;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     max-width: 100%;
     margin: 0 auto;
 }
 
 .logo {
-    font-size: 1.5rem;
+    font-size: 1.3rem;
     font-weight: 700;
     color: var(--primary-color);
     white-space: nowrap;
-    flex-shrink: 0;
+    flex-shrink: 1;
+    min-width: 0;
     letter-spacing: -0.5px;
     font-family: 'Playfair Display', serif;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .nav-links {
@@ -659,6 +662,28 @@ footer p {
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+/* EXTRA SMALL SCREENS (< 400px) */
+@media (max-width: 399px) {
+    .navbar-container {
+        padding: 0.75rem 12px;
+        gap: 0.75rem;
+    }
+
+    .logo {
+        font-size: 1.1rem;
+    }
+
+    .menu-toggle {
+        font-size: 1.25rem;
+        padding: 6px;
+    }
+
+    .home-icon {
+        font-size: 1.25rem;
+        padding: 6px;
     }
 }
 

@@ -18,10 +18,8 @@ init_pool()
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "chiave_segreta_default_per_sviluppo")
 
-# Determina se siamo in produzione (Render ha RENDER_DEPLOYMENT_ID)
 is_production = bool(os.getenv("RENDER_DEPLOYMENT_ID"))
 
-# Converte postgres:// in postgresql:// (per Supabase)
 db_url = os.getenv("DATABASE_URL")
 if db_url and db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
@@ -29,7 +27,7 @@ if db_url and db_url.startswith("postgres://"):
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_size': 30,  # Aumentato da 20 per distribuire meglio il carico
+    'pool_size': 30,
     'pool_recycle': 3600,
     'pool_pre_ping': True,
 }
@@ -100,7 +98,8 @@ def shirts(sport):
             # Controlla lo stato dell'asta
             auction_ended = False
             if shirt['id'] is not None and shirt['stato'] is not None:
-                auction_ended = shirt['stato'] == 'conclusa'
+                if shirt['stato'] == 'conclusa':
+                    auction_ended = True
             
             shirts.append({
                 'id': shirt['id'],
@@ -123,6 +122,8 @@ def shirts(sport):
         release_connection(conn, cur)
     
     return render_template('shirts.html', sport=sport, shirts=shirts, username=session.get('username'))
+
+
 
 
 
@@ -237,7 +238,9 @@ def make_offer(asta_id):
             UPDATE asta 
             SET offerta_attuale = %s, vincitore_attuale = %s, 
                 data_fine = (NOW() AT TIME ZONE 'Europe/Rome') + INTERVAL '2 hours'
-            WHERE id = %s AND stato = 'in_corso' AND (%s >= COALESCE(offerta_attuale, 0) + 1)
+            WHERE id = %s 
+                AND stato = 'in_corso' 
+                AND (%s >= COALESCE(offerta_attuale, 0) + 1)
             RETURNING offerta_attuale, data_fine
         ''', (offerta, session.get('username'), asta_id, offerta))
         
@@ -250,7 +253,7 @@ def make_offer(asta_id):
             
             if not asta_data:
                 flash('Asta non trovata', 'error')
-            elif asta_data['stato'] != 'in_corso':
+            elif asta_data['stato'] == 'conclusa':
                 flash('Questa asta è già conclusa', 'error')
             else:
                 offerta_attuale = asta_data['offerta_attuale']
@@ -374,7 +377,6 @@ def login():
             user = cur.fetchone()
             
             if user and check_password_hash(user['hash_password'], password):
-                # Prepara la sessione (Flask-Session la salva automaticamente)
                 session.clear()
                 session['logged_in'] = True
                 session['username'] = user['username']
@@ -491,7 +493,6 @@ def formatta_data(data_input):
     if data_input is None:
         return None
 
-    # Se è una stringa ISO, puliscila
     if isinstance(data_input, str):
         # Rimuove millisecondi e timezone se presenti
         data_input = data_input.split("+")[0].split("Z")[0].split(".")[0]
@@ -540,7 +541,7 @@ def parse_foto_urls(foto_raw, titolo_maglia=""):
 
 
 def get_placeholder_image(titolo_maglia):
-    """Genera URL placeholder per immagine manca."""
+    # Genera URL placeholder per immagine manca.
     return f'https://via.placeholder.com/300x400?text={titolo_maglia.replace(" ", "+")}'
 
 
