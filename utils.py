@@ -1,10 +1,12 @@
 import json
-from flask import Blueprint, request, current_app
+from flask import Blueprint, request
 from flask_mail import Mail, Message
 from db import get_connection, release_connection
 from psycopg2.extras import RealDictCursor
 import os
 import textwrap
+
+mail = None
 
 
 def parse_foto_urls(foto_raw, titolo_maglia=""):
@@ -46,19 +48,18 @@ def get_placeholder_image(titolo_maglia):
 
 # EMAIL BLUEPRINT
 
-mail = Mail()
-
 email_bp = Blueprint('email', __name__)
 
 def init_email(app):
     """Configura Flask-Mail con l'app"""
+    global mail
     app.config['MAIL_SERVER'] = 'smtp.gmail.com'
     app.config['MAIL_PORT'] = 587
     app.config['MAIL_USE_TLS'] = True
     app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
     app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
-    app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_USERNAME')
-    mail.init_app(app)
+    mail = Mail(app)
+    print(f"DEBUG init_email: MAIL_USERNAME = {app.config['MAIL_USERNAME']}")
 
 @email_bp.route("/email/status")
 def email_status():
@@ -158,9 +159,11 @@ def auction_ended():
         
         print(f"DEBUG: Body email preparato")
         
+        print(f"DEBUG: request.app.config['MAIL_USERNAME'] = {request.app.config['MAIL_USERNAME']}")
+        
         msg = Message(
             subject="Congratulazioni! Hai vinto l'asta",
-            sender=current_app.config['MAIL_USERNAME'],
+            sender=request.app.config['MAIL_USERNAME'],
             recipients=[auction_info['email']],
             body=body
         )
