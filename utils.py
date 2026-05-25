@@ -1,11 +1,10 @@
 import json
-from flask import Blueprint, request, current_app
+from flask import Blueprint, request
 from flask_mail import Mail, Message
 from db import get_connection, release_connection
 from psycopg2.extras import RealDictCursor
 import os
 import textwrap
-import threading
 
 
 def parse_foto_urls(foto_raw, titolo_maglia=""):
@@ -60,21 +59,13 @@ def init_email(app):
     app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
     mail.init_app(app)
 
-
-def send_email_async(msg):
-    """Invia email in background thread per non bloccare il webhook"""
-    with current_app.app_context():
-        try:
-            mail.send(msg)
-            print(f"DEBUG: Email inviata con successo in background!")
-        except Exception as e:
-            print(f"DEBUG ERROR (background thread): {str(e)}")
-            import traceback
-            traceback.print_exc()
-
 @email_bp.route("/email/status")
 def email_status():
     return "Server attivo"
+
+
+
+
 
 
 @email_bp.route("/auction-ended", methods=['POST'])
@@ -83,41 +74,27 @@ def auction_ended():
     conn = None
     cur = None
     
-    # Verifica che l'update riguardasse lo stato dell'asta
     try:
         payload = request.get_json()
-        print(f"DEBUG Payload completo: {json.dumps(payload, indent=2)}")
         
         if not payload or 'record' not in payload:
             return "Payload non valido", 400
         
-        # Estrai l'ID dell'asta dal payload
         auction_id = payload['record'].get('id')
         if not auction_id:
             return "ID asta mancante nel payload", 400
         
-        print(f"Ricevuta richiesta di notifica per asta ID: {auction_id}")
-        
-        # Controlla che lo stato passi da 'in_corso' a 'conclusa'
-        # Nota: Supabase usa 'old_record' non 'old'
         old_state = payload.get('old_record', {}).get('stato')
         new_state = payload['record'].get('stato')
         
-        print(f"DEBUG old_state: {old_state}, new_state: {new_state}")
-        
         if old_state != 'in_corso' or new_state != 'conclusa':
-            print(f"Asta {auction_id}: transizione stato non valida ({old_state} -> {new_state}), ignoro")
             return "Transizione stato non valida", 200
     except Exception as e:
         return f"Errore parsing payload: {str(e)}", 400
     
     try:
-        print(f"DEBUG PUNTO 1: Inizio blocco try - auction_id={auction_id}")
         conn = get_connection()
-        print(f"DEBUG PUNTO 2: Connessione database aperta")
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        
-        print(f"DEBUG: Connessione database aperta")
         
         cur.execute('''
                         SELECT a.offerta_attuale, a.vincitore_attuale, m.titolo, m.descrizione, m.foto, u.email
@@ -128,20 +105,13 @@ def auction_ended():
                     ''', (auction_id,))
         auction_info = cur.fetchone()
         
-        print(f"DEBUG: Dati asta recuperati - {auction_info}")
-        
         if not auction_info:
             return "Asta non trovata", 404
         
-        # Parsing delle foto usando la funzione dedicata
         foto_urls = parse_foto_urls(auction_info['foto'], auction_info['titolo'])
         
-        print(f"DEBUG: Foto parsate - {foto_urls}")
-        
-        # URL del logo dalla repo
         logo_url = f"{request.host_url.rstrip('/')}/static/images/logo/logo.jpg"
         
-        # Composizione del body dell'email
         foto_section = ""
         if foto_urls:
             foto_section = "\nFoto della maglia:\n" + "\n".join(foto_urls)
@@ -170,8 +140,6 @@ def auction_ended():
             Ogni Passaggio Conta
         """).strip()
         
-        print(f"DEBUG: Body email preparato")
-        
         msg = Message(
             subject="Congratulazioni! Hai vinto l'asta",
             sender=os.getenv('MAIL_USERNAME'),
@@ -179,21 +147,12 @@ def auction_ended():
             body=body
         )
         
-        print(f"DEBUG: Messaggio creato per {auction_info['email']}")
+        mail.send(msg)
         
-        # Invia email in background thread per non bloccare il webhook
-        email_thread = threading.Thread(target=send_email_async, args=(msg,))
-        email_thread.daemon = True
-        email_thread.start()
-        
-        print(f"DEBUG: Thread email avviato in background")
-        return "Email di notifica in elaborazione..."
+        return "Notifica webhook ricevuta"
         
     except Exception as e:
-        print(f"DEBUG ERROR: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return f"Errore invio email: {str(e)}"
+        return f"Errore: {str(e)}"
     
     finally:
         if cur:
