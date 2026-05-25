@@ -5,6 +5,7 @@ from db import get_connection, release_connection
 from psycopg2.extras import RealDictCursor
 import os
 import textwrap
+import threading
 
 
 def parse_foto_urls(foto_raw, titolo_maglia=""):
@@ -58,6 +59,17 @@ def init_email(app):
     app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
     app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
     mail.init_app(app)
+
+
+def send_email_async(msg):
+    """Invia email in background thread per non bloccare il webhook"""
+    try:
+        mail.send(msg)
+        print(f"DEBUG: Email inviata con successo in background!")
+    except Exception as e:
+        print(f"DEBUG ERROR (background thread): {str(e)}")
+        import traceback
+        traceback.print_exc()
 
 @email_bp.route("/email/status")
 def email_status():
@@ -168,10 +180,13 @@ def auction_ended():
         
         print(f"DEBUG: Messaggio creato per {auction_info['email']}")
         
-        mail.send(msg)
+        # Invia email in background thread per non bloccare il webhook
+        email_thread = threading.Thread(target=send_email_async, args=(msg,))
+        email_thread.daemon = True
+        email_thread.start()
         
-        print(f"DEBUG: Email inviata con successo!")
-        return "Email di notifica inviata correttamente!"
+        print(f"DEBUG: Thread email avviato in background")
+        return "Email di notifica in elaborazione..."
         
     except Exception as e:
         print(f"DEBUG ERROR: {str(e)}")
