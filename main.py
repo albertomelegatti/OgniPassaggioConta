@@ -11,8 +11,7 @@ from psycopg2.extras import RealDictCursor
 from db import get_connection, release_connection, init_pool
 from werkzeug.security import generate_password_hash, check_password_hash
 from admin import admin_bp
-from email_service import email_bp, init_email
-from utils import parse_foto_urls
+from utils import email_bp, init_email, parse_foto_urls
 
 load_dotenv()
 init_pool()
