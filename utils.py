@@ -1,5 +1,5 @@
 import json
-from flask import Blueprint, request
+from flask import Blueprint, request, current_app
 from flask_mail import Mail, Message
 from db import get_connection, release_connection
 from psycopg2.extras import RealDictCursor
@@ -58,6 +58,7 @@ def init_email(app):
     app.config['MAIL_USE_TLS'] = True
     app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
     app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+    app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_USERNAME')
     mail = Mail(app)
     print(f"DEBUG init_email: MAIL_USERNAME = {app.config['MAIL_USERNAME']}")
 
@@ -159,11 +160,11 @@ def auction_ended():
         
         print(f"DEBUG: Body email preparato")
         
-        print(f"DEBUG: request.app.config['MAIL_USERNAME'] = {request.app.config['MAIL_USERNAME']}")
+        print(f"DEBUG: current_app.config['MAIL_USERNAME'] = {current_app.config['MAIL_USERNAME']}")
         
         msg = Message(
             subject="Congratulazioni! Hai vinto l'asta",
-            sender=request.app.config['MAIL_USERNAME'],
+            sender=current_app.config['MAIL_USERNAME'],
             recipients=[auction_info['email']],
             body=body
         )
