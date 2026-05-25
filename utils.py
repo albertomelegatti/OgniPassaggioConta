@@ -110,7 +110,7 @@ def auction_ended():
                         SELECT a.offerta_attuale, a.vincitore_attuale, m.titolo, m.descrizione, m.foto, u.email
                         FROM asta a
                         JOIN maglia m ON a.id_maglia = m.id
-                        JOIN utente u ON a.vincitore_attuale = u.id
+                        JOIN utente u ON a.vincitore_attuale = u.username
                         WHERE a.id = %s;
                     ''', (auction_id,))
         auction_info = cur.fetchone()
