@@ -1,5 +1,5 @@
 import json
-from flask import Blueprint, request
+from flask import Blueprint, request, current_app
 from flask_mail import Mail, Message
 from db import get_connection, release_connection
 from psycopg2.extras import RealDictCursor
@@ -63,13 +63,14 @@ def init_email(app):
 
 def send_email_async(msg):
     """Invia email in background thread per non bloccare il webhook"""
-    try:
-        mail.send(msg)
-        print(f"DEBUG: Email inviata con successo in background!")
-    except Exception as e:
-        print(f"DEBUG ERROR (background thread): {str(e)}")
-        import traceback
-        traceback.print_exc()
+    with current_app.app_context():
+        try:
+            mail.send(msg)
+            print(f"DEBUG: Email inviata con successo in background!")
+        except Exception as e:
+            print(f"DEBUG ERROR (background thread): {str(e)}")
+            import traceback
+            traceback.print_exc()
 
 @email_bp.route("/email/status")
 def email_status():
