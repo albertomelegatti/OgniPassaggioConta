@@ -41,10 +41,13 @@ def auction_ended(auction_id):
         if not payload or 'record' not in payload:
             return "Payload non valido", 400
         
-        # Controlla che il campo 'stato' sia stato modificato
-        if 'old' not in payload or payload['old'].get('stato') == payload['record'].get('stato'):
-            print(f"Asta {auction_id}: stato non modificato, ignoro")
-            return "Stato non modificato", 200
+        # Controlla che lo stato passi da 'in_corso' a 'conclusa'
+        old_state = payload.get('old', {}).get('stato')
+        new_state = payload['record'].get('stato')
+        
+        if old_state != 'in_corso' or new_state != 'conclusa':
+            print(f"Asta {auction_id}: transizione stato non valida ({old_state} -> {new_state}), ignoro")
+            return "Transizione stato non valida", 200
     except Exception as e:
         return f"Errore parsing payload: {str(e)}", 400
     
