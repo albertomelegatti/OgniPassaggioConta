@@ -64,13 +64,11 @@ def email_status():
     return "Server attivo"
 
 
-@email_bp.route("/auction-ended/<int:auction_id>", methods=['POST'])
-def auction_ended(auction_id):
+@email_bp.route("/auction-ended", methods=['POST'])
+def auction_ended():
     
     conn = None
     cur = None
-    
-    print(f"Ricevuta richiesta di notifica per asta ID: {auction_id}")
     
     # Verifica che l'update riguardasse lo stato dell'asta
     try:
@@ -79,6 +77,13 @@ def auction_ended(auction_id):
         
         if not payload or 'record' not in payload:
             return "Payload non valido", 400
+        
+        # Estrai l'ID dell'asta dal payload
+        auction_id = payload['record'].get('id')
+        if not auction_id:
+            return "ID asta mancante nel payload", 400
+        
+        print(f"Ricevuta richiesta di notifica per asta ID: {auction_id}")
         
         # Controlla che lo stato passi da 'in_corso' a 'conclusa'
         # Nota: Supabase usa 'old_record' non 'old'
