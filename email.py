@@ -35,6 +35,19 @@ def auction_ended(auction_id):
     if not auction_id:
         return "ID dell'asta mancante", 400
     
+    # Verifica che l'update riguardasse lo stato dell'asta
+    try:
+        payload = request.get_json()
+        if not payload or 'record' not in payload:
+            return "Payload non valido", 400
+        
+        # Controlla che il campo 'stato' sia stato modificato
+        if 'old' not in payload or payload['old'].get('stato') == payload['record'].get('stato'):
+            print(f"Asta {auction_id}: stato non modificato, ignoro")
+            return "Stato non modificato", 200
+    except Exception as e:
+        return f"Errore parsing payload: {str(e)}", 400
+    
     try:
         conn = get_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
