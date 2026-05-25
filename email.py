@@ -2,6 +2,7 @@ from flask import Blueprint, request
 from flask_mail import Mail, Message
 from db import get_connection, release_connection
 from psycopg2.extras import RealDictCursor
+from utils import parse_foto_urls
 import os
 import textwrap
 
@@ -68,7 +69,6 @@ def auction_ended(auction_id):
             return "Asta non trovata", 404
         
         # Parsing delle foto usando la funzione dedicata
-        from main import parse_foto_urls
         foto_urls = parse_foto_urls(auction_info['foto'], auction_info['titolo'])
         
         # URL del logo dalla repo
