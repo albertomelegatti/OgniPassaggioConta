@@ -76,6 +76,7 @@ def auction_ended():
     
     try:
         payload = request.get_json()
+        print(f"DEBUG Payload completo: {json.dumps(payload, indent=2)}")
         
         if not payload or 'record' not in payload:
             return "Payload non valido", 400
@@ -84,17 +85,27 @@ def auction_ended():
         if not auction_id:
             return "ID asta mancante nel payload", 400
         
+        print(f"Ricevuta richiesta di notifica per asta ID: {auction_id}")
+        
         old_state = payload.get('old_record', {}).get('stato')
         new_state = payload['record'].get('stato')
         
+        print(f"DEBUG old_state: {old_state}, new_state: {new_state}")
+        
         if old_state != 'in_corso' or new_state != 'conclusa':
+            print(f"Asta {auction_id}: transizione stato non valida ({old_state} -> {new_state}), ignoro")
             return "Transizione stato non valida", 200
     except Exception as e:
+        print(f"DEBUG ERROR payload: {str(e)}")
         return f"Errore parsing payload: {str(e)}", 400
     
     try:
+        print(f"DEBUG PUNTO 1: Inizio blocco try - auction_id={auction_id}")
         conn = get_connection()
+        print(f"DEBUG PUNTO 2: Connessione database aperta")
         cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        print(f"DEBUG: Connessione database aperta")
         
         cur.execute('''
                         SELECT a.offerta_attuale, a.vincitore_attuale, m.titolo, m.descrizione, m.foto, u.email
@@ -105,10 +116,14 @@ def auction_ended():
                     ''', (auction_id,))
         auction_info = cur.fetchone()
         
+        print(f"DEBUG: Dati asta recuperati - {auction_info}")
+        
         if not auction_info:
             return "Asta non trovata", 404
         
         foto_urls = parse_foto_urls(auction_info['foto'], auction_info['titolo'])
+        
+        print(f"DEBUG: Foto parsate - {foto_urls}")
         
         logo_url = f"{request.host_url.rstrip('/')}/static/images/logo/logo.jpg"
         
@@ -140,6 +155,8 @@ def auction_ended():
             Ogni Passaggio Conta
         """).strip()
         
+        print(f"DEBUG: Body email preparato")
+        
         msg = Message(
             subject="Congratulazioni! Hai vinto l'asta",
             sender=os.getenv('MAIL_USERNAME'),
@@ -147,12 +164,19 @@ def auction_ended():
             body=body
         )
         
+        print(f"DEBUG: Messaggio creato per {auction_info['email']}")
+        
         mail.send(msg)
         
-        return "Notifica webhook ricevuta"
+        print(f"DEBUG: Email inviata con successo!")
+        
+        return "Email di notifica inviata correttamente!"
         
     except Exception as e:
-        return f"Errore: {str(e)}"
+        print(f"DEBUG ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return f"Errore invio email: {str(e)}"
     
     finally:
         if cur:
