@@ -11,6 +11,7 @@ from psycopg2.extras import RealDictCursor
 from db import get_connection, release_connection, init_pool
 from werkzeug.security import generate_password_hash, check_password_hash
 from admin import admin_bp
+from email import email_bp, init_email
 
 load_dotenv()
 init_pool()
@@ -52,7 +53,10 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 
 Session(app)
 
+init_email(app)
+
 app.register_blueprint(admin_bp)
+app.register_blueprint(email_bp)
 
 # Crea la tabella delle sessioni al primo avvio
 with app.app_context():
