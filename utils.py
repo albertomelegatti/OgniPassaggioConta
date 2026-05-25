@@ -57,6 +57,7 @@ def init_email(app):
     app.config['MAIL_USE_TLS'] = True
     app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
     app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+    app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_USERNAME')
     mail.init_app(app)
 
 @email_bp.route("/email/status")
@@ -159,7 +160,6 @@ def auction_ended():
         
         msg = Message(
             subject="Congratulazioni! Hai vinto l'asta",
-            sender=os.getenv('MAIL_USERNAME'),
             recipients=[auction_info['email']],
             body=body
         )
