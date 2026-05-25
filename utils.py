@@ -99,8 +99,12 @@ def auction_ended():
         return f"Errore parsing payload: {str(e)}", 400
     
     try:
+        print(f"DEBUG PUNTO 1: Inizio blocco try - auction_id={auction_id}")
         conn = get_connection()
+        print(f"DEBUG PUNTO 2: Connessione database aperta")
         cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        print(f"DEBUG: Connessione database aperta")
         
         cur.execute('''
                         SELECT a.offerta_attuale, a.vincitore_attuale, m.titolo, m.descrizione, m.foto, u.email
@@ -111,11 +115,15 @@ def auction_ended():
                     ''', (auction_id,))
         auction_info = cur.fetchone()
         
+        print(f"DEBUG: Dati asta recuperati - {auction_info}")
+        
         if not auction_info:
             return "Asta non trovata", 404
         
         # Parsing delle foto usando la funzione dedicata
         foto_urls = parse_foto_urls(auction_info['foto'], auction_info['titolo'])
+        
+        print(f"DEBUG: Foto parsate - {foto_urls}")
         
         # URL del logo dalla repo
         logo_url = f"{request.host_url.rstrip('/')}/static/images/logo/logo.jpg"
@@ -149,16 +157,26 @@ def auction_ended():
             Ogni Passaggio Conta
         """).strip()
         
+        print(f"DEBUG: Body email preparato")
+        
         msg = Message(
             subject="Congratulazioni! Hai vinto l'asta",
             sender=os.getenv('MAIL_USERNAME'),
             recipients=[auction_info['email']],
             body=body
         )
+        
+        print(f"DEBUG: Messaggio creato per {auction_info['email']}")
+        
         mail.send(msg)
+        
+        print(f"DEBUG: Email inviata con successo!")
         return "Email di notifica inviata correttamente!"
         
     except Exception as e:
+        print(f"DEBUG ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return f"Errore invio email: {str(e)}"
     
     finally:
