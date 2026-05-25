@@ -4,7 +4,6 @@ from flask_mail import Mail, Message
 from db import get_connection, release_connection
 from psycopg2.extras import RealDictCursor
 import os
-import textwrap
 
 mail = None
 
@@ -60,7 +59,6 @@ def init_email(app):
     app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
     app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_USERNAME')
     mail = Mail(app)
-    print(f"DEBUG init_email: MAIL_USERNAME = {app.config['MAIL_USERNAME']}")
 
 @email_bp.route("/email/status")
 def email_status():
@@ -79,7 +77,6 @@ def auction_ended():
     
     try:
         payload = request.get_json()
-        print(f"DEBUG Payload completo: {json.dumps(payload, indent=2)}")
         
         if not payload or 'record' not in payload:
             return "Payload non valido", 400
@@ -88,27 +85,17 @@ def auction_ended():
         if not auction_id:
             return "ID asta mancante nel payload", 400
         
-        print(f"Ricevuta richiesta di notifica per asta ID: {auction_id}")
-        
         old_state = payload.get('old_record', {}).get('stato')
         new_state = payload['record'].get('stato')
         
-        print(f"DEBUG old_state: {old_state}, new_state: {new_state}")
-        
         if old_state != 'in_corso' or new_state != 'conclusa':
-            print(f"Asta {auction_id}: transizione stato non valida ({old_state} -> {new_state}), ignoro")
             return "Transizione stato non valida", 200
     except Exception as e:
-        print(f"DEBUG ERROR payload: {str(e)}")
         return f"Errore parsing payload: {str(e)}", 400
     
     try:
-        print(f"DEBUG PUNTO 1: Inizio blocco try - auction_id={auction_id}")
         conn = get_connection()
-        print(f"DEBUG PUNTO 2: Connessione database aperta")
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        
-        print(f"DEBUG: Connessione database aperta")
         
         cur.execute('''
                         SELECT a.offerta_attuale, a.vincitore_attuale, m.titolo, m.descrizione, m.foto, u.email
@@ -119,66 +106,65 @@ def auction_ended():
                     ''', (auction_id,))
         auction_info = cur.fetchone()
         
-        print(f"DEBUG: Dati asta recuperati - {auction_info}")
-        
         if not auction_info:
             return "Asta non trovata", 404
         
         foto_urls = parse_foto_urls(auction_info['foto'], auction_info['titolo'])
         
-        print(f"DEBUG: Foto parsate - {foto_urls}")
-        
         logo_url = f"{request.host_url.rstrip('/')}/static/images/logo/logo.jpg"
         
-        foto_section = ""
-        if foto_urls:
-            foto_section = "\nFoto della maglia:\n" + "\n".join(foto_urls)
+        # Prendi la prima foto per mostrare nella email
+        prima_foto = foto_urls[0] if foto_urls else None
         
-        body = textwrap.dedent(f"""
-            [LOGO: {logo_url}]
-            
-            ═══════════════════════════════════════════════════════════
-            OGNI PASSAGGIO CONTA - Asta Sportiva
-            ═══════════════════════════════════════════════════════════
-            
-            Congratulazioni!
-
-            L'asta per la maglia "{auction_info['titolo']}" è terminata e hai vinto!
-
-            Dettagli dell'asta:
-            - Articolo: {auction_info['titolo']}
-            - Descrizione: {auction_info['descrizione']}
-            - Offerta finale: €{auction_info['offerta_attuale']}{foto_section}
-
-            Per completare l'acquisto, accedi al tuo account e finalizza l'ordine.
-
-            Grazie per aver partecipato!
-            
-            ═══════════════════════════════════════════════════════════
-            Ogni Passaggio Conta
-        """).strip()
-        
-        print(f"DEBUG: Body email preparato")
-        
-        print(f"DEBUG: current_app.config['MAIL_USERNAME'] = {current_app.config['MAIL_USERNAME']}")
+        # Composizione del body come HTML
+        html_body = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                <div style="max-width: 600px; margin: 0 auto;">
+                    <img src="{logo_url}" alt="Logo" style="max-width: 200px; margin-bottom: 20px;">
+                    
+                    <hr style="border: none; border-top: 2px solid #ddd; margin: 20px 0;">
+                    
+                    <h2 style="color: #2c3e50; text-align: center;">OGNI PASSAGGIO CONTA - Asta Sportiva</h2>
+                    
+                    <hr style="border: none; border-top: 2px solid #ddd; margin: 20px 0;">
+                    
+                    <h3 style="color: #27ae60;">Congratulazioni!</h3>
+                    
+                    <p>L'asta per la maglia <strong>"{auction_info['titolo']}"</strong> è terminata e <strong>hai vinto!</strong></p>
+                    
+                    <h4 style="color: #2c3e50;">Dettagli dell'asta:</h4>
+                    <ul style="background-color: #f5f5f5; padding: 15px; border-radius: 5px;">
+                        <li><strong>Articolo:</strong> {auction_info['titolo']}</li>
+                        <li><strong>Descrizione:</strong> {auction_info['descrizione']}</li>
+                        <li><strong>Offerta finale:</strong> €{auction_info['offerta_attuale']}</li>
+                    </ul>
+                    
+                    {f'<div style="margin: 20px 0;"><img src="{prima_foto}" alt="{auction_info["titolo"]}" style="max-width: 300px; border-radius: 5px;"></div>' if prima_foto else ''}
+                    
+                    <p style="margin-top: 30px; color: #7f8c8d;">Per completare l'acquisto, accedi al tuo account e finalizza l'ordine.</p>
+                    
+                    <p style="margin-top: 30px; text-align: center; color: #7f8c8d;">
+                        <strong>Grazie per aver partecipato!</strong><br>
+                        Ogni Passaggio Conta
+                    </p>
+                </div>
+            </body>
+        </html>
+        """
         
         msg = Message(
             subject="Congratulazioni! Hai vinto l'asta",
             sender=current_app.config['MAIL_USERNAME'],
             recipients=[auction_info['email']],
-            body=body
+            html=html_body
         )
         
-        print(f"DEBUG: Messaggio creato per {auction_info['email']}")
-        
         mail.send(msg)
-        
-        print(f"DEBUG: Email inviata con successo!")
         
         return "Email di notifica inviata correttamente!"
         
     except Exception as e:
-        print(f"DEBUG ERROR: {str(e)}")
         import traceback
         traceback.print_exc()
         return f"Errore invio email: {str(e)}"
