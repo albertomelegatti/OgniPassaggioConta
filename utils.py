@@ -67,9 +67,10 @@ def init_email(app):
     app.config['MAIL_USERNAME'] = mail_user
     app.config['MAIL_PASSWORD'] = mail_pass
     app.config['MAIL_DEFAULT_SENDER'] = mail_user
+    app.config['MAIL_DEBUG'] = True  # Abilita debug di Flask-Mail
     
     mail = Mail(app)
-    print("✅ Email configurata correttamente")
+    print(f"✅ Email configurata correttamente per {mail_user}")
 
 @email_bp.route("/email/status")
 def email_status():
@@ -82,38 +83,63 @@ def email_status():
 
 @email_bp.route("/auction-ended", methods=['POST'])
 def auction_ended():
+    """Webhook per notificare il vincitore quando l'asta termina"""
+    
+    print("\n" + "="*60)
+    print("🔔 WEBHOOK /auction-ended ricevuto")
+    print("="*60)
     
     # Verifica che mail sia stato inizializzato
     if mail is None:
-        print("❌ ERRORE: Email non inizializzata. Chiama init_email(app) all'avvio.")
-        return "Email non configurata", 500
+        print("❌ ERRORE CRITICO: Email non inizializzata")
+        print("   Assicurati che init_email(app) sia stato chiamato in main.py")
+        return {"error": "Email non configurata", "status": 500}, 500
+    
+    print("✅ Mail object trovato")
     
     conn = None
     cur = None
     
     try:
+        # Debug: stampa il payload ricevuto
         payload = request.get_json()
+        print(f"\n📋 Payload ricevuto: {json.dumps(payload, indent=2, default=str)}")
         
         if not payload or 'record' not in payload:
-            return "Payload non valido", 400
+            print("❌ Payload non valido - 'record' non trovato")
+            return {"error": "Payload non valido"}, 400
         
         auction_id = payload['record'].get('id')
         if not auction_id:
-            return "ID asta mancante nel payload", 400
+            print("❌ ID asta mancante nel payload")
+            return {"error": "ID asta mancante"}, 400
+        
+        print(f"\n🎯 Processando asta ID: {auction_id}")
         
         old_state = payload.get('old_record', {}).get('stato')
         new_state = payload['record'].get('stato')
         
+        print(f"   Stato precedente: {old_state}")
+        print(f"   Nuovo stato: {new_state}")
+        
         if old_state != 'in_corso' or new_state != 'conclusa':
-            return "Transizione stato non valida", 200
+            print(f"⚠️ Transizione stato non valida - non è una conclusione")
+            return {"message": "Transizione non richiesta (non è una conclusione)"}, 200
+        
+        print("✅ Transizione stato valida")
     except Exception as e:
         print(f"❌ Errore parsing payload: {str(e)}")
-        return f"Errore parsing payload: {str(e)}", 400
+        import traceback
+        traceback.print_exc()
+        return {"error": f"Errore parsing: {str(e)}"}, 400
     
     try:
+        print("\n🔌 Connessione al database...")
         conn = get_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
+        print("✅ Connessione riuscita")
         
+        print(f"\n🔍 Cercando asta {auction_id}...")
         cur.execute('''
                         SELECT a.offerta_attuale, a.vincitore_attuale, m.titolo, m.descrizione, m.foto, u.email
                         FROM asta a
@@ -124,23 +150,28 @@ def auction_ended():
         auction_info = cur.fetchone()
         
         if not auction_info:
-            print(f"⚠️ Asta {auction_id} non trovata")
-            return "Asta non trovata", 404
+            print(f"❌ Asta {auction_id} non trovata nel database")
+            return {"error": "Asta non trovata"}, 404
+        
+        print("✅ Asta trovata")
+        print(f"   Titolo: {auction_info['titolo']}")
+        print(f"   Vincitore: {auction_info['vincitore_attuale']}")
+        print(f"   Email: {auction_info['email']}")
         
         # Verifica che il vincitore abbia un'email
         winner_email = auction_info.get('email')
         if not winner_email:
-            print(f"⚠️ Il vincitore dell'asta {auction_id} non ha un'email valida")
-            return "Email del vincitore non disponibile", 400
+            print(f"❌ Email del vincitore non disponibile")
+            return {"error": "Email vincitore non disponibile"}, 400
         
+        print("\n📸 Parsing foto...")
         foto_urls = parse_foto_urls(auction_info['foto'], auction_info['titolo'])
+        print(f"✅ {len(foto_urls)} foto trovate")
         
         logo_url = f"{request.host_url.rstrip('/')}/static/images/logo/logo.jpg"
-        
-        # Prendi la prima foto per mostrare nella email
         prima_foto = foto_urls[0] if foto_urls else None
         
-        # Composizione del body come HTML
+        print("\n📧 Costruendo email...")
         html_body = f"""
         <html>
             <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
@@ -174,7 +205,9 @@ def auction_ended():
             </body>
         </html>
         """
+        print("✅ Email costruita")
         
+        print(f"\n📤 Inviando email a {winner_email}...")
         msg = Message(
             subject="Congratulazioni! Hai vinto l'asta",
             sender=current_app.config['MAIL_DEFAULT_SENDER'],
@@ -183,14 +216,18 @@ def auction_ended():
         )
         
         mail.send(msg)
-        print(f"✅ Email di vittoria inviata a {winner_email} per l'asta {auction_id}")
-        return "Email di notifica inviata correttamente!"
+        print(f"✅ EMAIL INVIATA CON SUCCESSO a {winner_email}")
+        print("="*60 + "\n")
+        
+        return {"success": True, "message": "Email inviata correttamente"}, 200
         
     except Exception as e:
         import traceback
-        print(f"❌ Errore invio email: {str(e)}")
+        print(f"\n❌ ERRORE INVIO EMAIL: {str(e)}")
+        print("Traceback completo:")
         traceback.print_exc()
-        return f"Errore invio email: {str(e)}", 500
+        print("="*60 + "\n")
+        return {"error": f"Errore invio email: {str(e)}"}, 500
     
     finally:
         release_connection(conn, cur)
@@ -198,29 +235,46 @@ def auction_ended():
 
 @email_bp.route("/send-test")
 def send_test_email():
+    """Endpoint di test per verificare che l'email funziona"""
+    
+    print("\n" + "="*60)
+    print("📧 TEST EMAIL AVVIATO")
+    print("="*60)
     
     if mail is None:
-        print("❌ ERRORE: Email non inizializzata!")
-        return "Email non configurata", 500
+        print("❌ ERRORE CRITICO: Email non inizializzata!")
+        return {"error": "Email non configurata"}, 500
+    
+    print("✅ Mail object trovato")
     
     try:
-        test_recipient = os.getenv('MAIL_USERNAME')  # Invia a te stesso
+        test_recipient = os.getenv('MAIL_USERNAME')
         if not test_recipient:
-            return "Email di destinazione non configurata", 400
+            print("❌ Email di destinazione non configurata")
+            return {"error": "Email destinazione non trovata"}, 400
+        
+        sender = current_app.config.get('MAIL_DEFAULT_SENDER')
+        print(f"📤 Parametri email:")
+        print(f"   From: {sender}")
+        print(f"   To: {test_recipient}")
         
         msg = Message(
-            subject="Email di test Flask - Ogni Passaggio Conta",
-            sender=current_app.config['MAIL_DEFAULT_SENDER'],
+            subject="✅ Email di test - Ogni Passaggio Conta",
+            sender=sender,
             recipients=[test_recipient],
-            body="✅ Funziona! Email inviata da Flask su Render."
+            body="Funziona! Email inviata da Flask su Render."
         )
 
+        print("📮 Inviando email...")
         mail.send(msg)
-        print(f"✅ Email di test inviata a {test_recipient}")
-        return "Email di test inviata correttamente!"
+        print(f"✅ EMAIL DI TEST INVIATA CON SUCCESSO a {test_recipient}")
+        print("="*60 + "\n")
+        return {"success": True, "message": f"Email di test inviata a {test_recipient}"}, 200
 
     except Exception as e:
         import traceback
-        print(f"❌ Errore invio email di test: {str(e)}")
+        print(f"❌ ERRORE INVIO EMAIL DI TEST: {str(e)}")
+        print("Traceback completo:")
         traceback.print_exc()
-        return f"Errore invio email: {str(e)}", 500
+        print("="*60 + "\n")
+        return {"error": f"Errore invio email: {str(e)}"}, 500
