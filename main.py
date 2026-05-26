@@ -2,9 +2,6 @@ import os
 import re
 import time
 import json
-import traceback
-import logging
-import sys
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask.cli import load_dotenv
@@ -16,29 +13,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from admin import admin_bp
 from utils import email_bp, init_email, parse_foto_urls
 
-# WhiteNoise for serving static files in production
-try:
-    from whitenoise import WhiteNoise
-    WHITENOISE_AVAILABLE = True
-except ImportError:
-    WHITENOISE_AVAILABLE = False
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    stream=sys.stdout
-)
-logger = logging.getLogger(__name__)
-
 load_dotenv()
 
-try:
-    init_pool()
-except Exception as e:
-    logger.error(f"Failed to initialize database pool: {e}")
-    logger.error(traceback.format_exc())
-    sys.exit(1)
+init_pool()
 
 # Configure Flask with explicit paths for static and template folders
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -82,12 +59,6 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 
 Session(app)
 
-# Configure WhiteNoise for serving static files in production
-if WHITENOISE_AVAILABLE:
-    app.wsgi_app = WhiteNoise(app.wsgi_app, root=STATIC_FOLDER, index_file=False)
-else:
-    logger.warning("WhiteNoise not available, static files may not be served correctly on Render")
-
 init_email(app)
 
 app.register_blueprint(admin_bp)
@@ -96,16 +67,11 @@ app.register_blueprint(email_bp)
 # Crea la tabella delle sessioni al primo avvio
 with app.app_context():
     db.create_all()
-    logger.info("✅ Database tables created/verified")
 
 # ===== ERROR HANDLERS =====
 
 @app.errorhandler(404)
 def not_found(error):
-    logger.warning(f"404 Not Found: {request.method} {request.path}")
-    logger.warning(f"Referrer: {request.referrer}")
-    logger.warning(f"User-Agent: {request.user_agent}")
-    
     # Se è una richiesta HTML, ritorna messaggio di errore
     if request.accept_mimetypes.best == 'text/html':
         return {
@@ -120,22 +86,10 @@ def not_found(error):
 
 @app.errorhandler(500)
 def internal_error(error):
-    logger.error(f"500 Internal Server Error: {error}")
-    logger.error(traceback.format_exc())
     return jsonify({'error': 'Internal server error', 'details': str(error)}), 500
 
 
-@app.after_request
-def after_request_logging(response):
-    """Log all responses including 404s"""
-    if response.status_code >= 400:
-        logger.warning(f"Response {response.status_code}: {request.method} {request.path}")
-    return response
 
-
-@app.before_request
-def before_request_logging():
-    logger.debug(f"Request: {request.method} {request.path} from {request.remote_addr}")
 
 
 # ===== ROUTES =====
@@ -145,22 +99,9 @@ def before_request_logging():
 @app.route('/')
 def landing():
     try:
-        logger.info("Landing page requested")
-        logger.info(f"Template folder: {app.template_folder}")
-        logger.info(f"Template folder exists: {os.path.exists(app.template_folder)}")
-        
-        # List available templates
-        if os.path.exists(app.template_folder):
-            templates = os.listdir(app.template_folder)
-            logger.info(f"Available templates: {templates}")
-        
         result = render_template('index.html', username=session.get('username'))
-        logger.info("Landing page rendered successfully")
         return result
     except Exception as e:
-        logger.error(f"❌ Error rendering landing page: {e}")
-        logger.error(f"Error type: {type(e).__name__}")
-        logger.error(traceback.format_exc())
         return {
             'error': 'Failed to render landing page',
             'details': str(e),
@@ -173,11 +114,8 @@ def landing():
 @app.route('/sports')
 def sports():
     try:
-        logger.info("Sports page requested")
         return render_template('sports.html', username=session.get('username'))
     except Exception as e:
-        logger.error(f"Error rendering sports page: {e}")
-        logger.error(traceback.format_exc())
         return {'error': 'Failed to render sports page', 'details': str(e)}, 500
 
 
@@ -227,8 +165,7 @@ def shirts(sport):
             
         
     except Exception as e:
-        print(f"Error fetching shirts: {e}")
-        
+        pass
     finally:
         release_connection(conn, cur)
     
@@ -277,7 +214,6 @@ def shirt_detail(maglia_id):
         }
         
     except Exception as e:
-        print(f"Error fetching shirt details: {e}")
         flash('Errore nel caricamento della maglia', 'error')
         return redirect(url_for('sports'))
         
@@ -319,7 +255,6 @@ def get_auction_data(asta_id):
         })
         
     except Exception as e:
-        print(f"Error fetching auction data: {e}")
         return jsonify({'error': 'Errore nel recupero dati'}), 500
     finally:
         release_connection(conn, cur)
@@ -382,7 +317,6 @@ def make_offer(asta_id):
                 conn.rollback()
             except:
                 pass
-        print(f"Error making offer: {e}")
         flash('Errore durante l\'invio dell\'offerta', 'error')
     finally:
         release_connection(conn, cur)
@@ -445,7 +379,6 @@ def start_auction(maglia_id):
                 conn.rollback()
             except:
                 pass
-        print(f"Error starting auction: {e}")
         flash(f'Errore durante l\'avvio dell\'asta: {str(e)}', 'error')
     
     finally:
@@ -501,7 +434,6 @@ def login():
                 flash('❌ Credenziali non valide. Riprova.', 'error')
         
         except Exception as e:
-            print(f"Error during login: {e}")
             flash('❌ Errore di connessione al database.', 'error')
             
         finally:
@@ -562,7 +494,6 @@ def account():
             })
         
     except Exception as e:
-        print(f"Error fetching won auctions: {e}")
         flash('Errore nel caricamento delle aste vinte', 'error')
         
     finally:
@@ -686,7 +617,6 @@ def test():
 def test_template():
     """Test if template rendering works"""
     try:
-        logger.info("Test template endpoint called")
         from jinja2 import TemplateNotFound
         
         # Try to list available templates
@@ -696,8 +626,8 @@ def test_template():
             templates_dir = os.path.join(app.root_path, 'templates')
             if os.path.exists(templates_dir):
                 template_names = os.listdir(templates_dir)
-        except Exception as e:
-            logger.error(f"Error listing templates: {e}")
+        except Exception:
+            pass
         
         return {
             'status': 'ok',
@@ -707,18 +637,14 @@ def test_template():
             'timestamp': datetime.now().isoformat()
         }, 200
     except Exception as e:
-        logger.error(f"Error in test_template: {e}")
-        logger.error(traceback.format_exc())
         return {
             'status': 'error',
-            'error': str(e),
-            'traceback': traceback.format_exc()
+            'error': str(e)
         }, 500
 
 
 @app.route('/health')
 def health():
-    logger.info("Health check requested")
     db_status = "unknown"
     try:
         # Verifica connessione al database
@@ -728,7 +654,6 @@ def health():
         release_connection(conn, cur)
         db_status = "connected"
     except Exception as e:
-        logger.error(f"Database health check failed: {e}")
         db_status = f"error: {str(e)}"
     
     return {
