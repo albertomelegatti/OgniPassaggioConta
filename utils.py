@@ -81,6 +81,7 @@ def email_status():
 
 
 
+
 @email_bp.route("/auction-ended", methods=['POST'])
 def auction_ended():
     """Webhook per notificare il vincitore quando l'asta termina"""
