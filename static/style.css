@@ -703,43 +703,6 @@ footer p {
         font-size: 1.5rem;
     }
 
-    .menu-toggle {
-        display: none;
-    }
-
-    .side-menu {
-        display: none;
-    }
-
-    .nav-links {
-        display: flex;
-        position: static;
-        flex-direction: row;
-        background: transparent;
-        border: none;
-        gap: 2.5rem;
-        order: 2;
-        flex-grow: 1;
-    }
-
-    .nav-links li {
-        border: none;
-    }
-
-    .nav-links a {
-        padding: 0;
-        transition: all 0.3s ease;
-        color: var(--text-color);
-        font-weight: 500;
-    }
-
-    .nav-links a:hover {
-        color: var(--primary-color);
-        text-decoration: underline;
-        text-decoration-thickness: 2px;
-        text-underline-offset: 6px;
-    }
-
     .nav-auth-buttons {
         display: flex;
         position: static;

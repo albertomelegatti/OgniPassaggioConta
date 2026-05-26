@@ -52,13 +52,24 @@ email_bp = Blueprint('email', __name__)
 def init_email(app):
     """Configura Flask-Mail con l'app"""
     global mail
+    
+    # Verifica che le variabili d'ambiente siano presenti
+    mail_user = os.getenv('MAIL_USERNAME')
+    mail_pass = os.getenv('MAIL_PASSWORD')
+    
+    if not mail_user or not mail_pass:
+        print("❌ ERRORE: MAIL_USERNAME o MAIL_PASSWORD non configurati!")
+        return
+    
     app.config['MAIL_SERVER'] = 'smtp.gmail.com'
     app.config['MAIL_PORT'] = 587
     app.config['MAIL_USE_TLS'] = True
-    app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
-    app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
-    app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_USERNAME')
+    app.config['MAIL_USERNAME'] = mail_user
+    app.config['MAIL_PASSWORD'] = mail_pass
+    app.config['MAIL_DEFAULT_SENDER'] = mail_user
+    
     mail = Mail(app)
+    print("✅ Email configurata correttamente")
 
 @email_bp.route("/email/status")
 def email_status():
@@ -71,6 +82,11 @@ def email_status():
 
 @email_bp.route("/auction-ended", methods=['POST'])
 def auction_ended():
+    
+    # Verifica che mail sia stato inizializzato
+    if mail is None:
+        print("❌ ERRORE: Email non inizializzata. Chiama init_email(app) all'avvio.")
+        return "Email non configurata", 500
     
     conn = None
     cur = None
@@ -91,6 +107,7 @@ def auction_ended():
         if old_state != 'in_corso' or new_state != 'conclusa':
             return "Transizione stato non valida", 200
     except Exception as e:
+        print(f"❌ Errore parsing payload: {str(e)}")
         return f"Errore parsing payload: {str(e)}", 400
     
     try:
@@ -107,7 +124,14 @@ def auction_ended():
         auction_info = cur.fetchone()
         
         if not auction_info:
+            print(f"⚠️ Asta {auction_id} non trovata")
             return "Asta non trovata", 404
+        
+        # Verifica che il vincitore abbia un'email
+        winner_email = auction_info.get('email')
+        if not winner_email:
+            print(f"⚠️ Il vincitore dell'asta {auction_id} non ha un'email valida")
+            return "Email del vincitore non disponibile", 400
         
         foto_urls = parse_foto_urls(auction_info['foto'], auction_info['titolo'])
         
@@ -142,8 +166,6 @@ def auction_ended():
                     
                     {f'<div style="margin: 20px 0;"><img src="{prima_foto}" alt="{auction_info["titolo"]}" style="max-width: 300px; border-radius: 5px;"></div>' if prima_foto else ''}
                     
-                    <p style="margin-top: 30px; color: #7f8c8d;">Per completare l'acquisto, accedi al tuo account e finalizza l'ordine.</p>
-                    
                     <p style="margin-top: 30px; text-align: center; color: #7f8c8d;">
                         <strong>Grazie per aver partecipato!</strong><br>
                         Ogni Passaggio Conta
@@ -155,40 +177,50 @@ def auction_ended():
         
         msg = Message(
             subject="Congratulazioni! Hai vinto l'asta",
-            sender=current_app.config['MAIL_USERNAME'],
-            recipients=[auction_info['email']],
+            sender=current_app.config['MAIL_DEFAULT_SENDER'],
+            recipients=[winner_email],
             html=html_body
         )
         
         mail.send(msg)
-        
+        print(f"✅ Email di vittoria inviata a {winner_email} per l'asta {auction_id}")
         return "Email di notifica inviata correttamente!"
         
     except Exception as e:
         import traceback
+        print(f"❌ Errore invio email: {str(e)}")
         traceback.print_exc()
-        return f"Errore invio email: {str(e)}"
+        return f"Errore invio email: {str(e)}", 500
     
     finally:
-        if cur:
-            cur.close()
-        if conn:
-            release_connection(conn)
+        release_connection(conn, cur)
 
 
 @email_bp.route("/send-test")
 def send_test_email():
+    
+    if mail is None:
+        print("❌ ERRORE: Email non inizializzata!")
+        return "Email non configurata", 500
+    
     try:
+        test_recipient = os.getenv('MAIL_USERNAME')  # Invia a te stesso
+        if not test_recipient:
+            return "Email di destinazione non configurata", 400
+        
         msg = Message(
-            subject="Email di test Flask",
-            sender=os.getenv('MAIL_USERNAME'),
-            recipients=["melegattialberto@gmail.com"],
-            body="Funziona! Email inviata da Flask su Render."
+            subject="Email di test Flask - Ogni Passaggio Conta",
+            sender=current_app.config['MAIL_DEFAULT_SENDER'],
+            recipients=[test_recipient],
+            body="✅ Funziona! Email inviata da Flask su Render."
         )
 
         mail.send(msg)
-
-        return "Email inviata correttamente!"
+        print(f"✅ Email di test inviata a {test_recipient}")
+        return "Email di test inviata correttamente!"
 
     except Exception as e:
-        return f"Errore invio email: {str(e)}"
+        import traceback
+        print(f"❌ Errore invio email di test: {str(e)}")
+        traceback.print_exc()
+        return f"Errore invio email: {str(e)}", 500

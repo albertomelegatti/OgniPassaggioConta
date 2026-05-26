@@ -20,7 +20,7 @@
                     Tutte ({{ shirts|length }})
                 </button>
                 <button class="filter-btn" data-filter="auction" onclick="filterShirts('auction')">
-                    Con Asta ({{ shirts|selectattr('has_auction')|list|length }})
+                    Con Asta ({{ shirts|selectattr('has_auction')|selectattr('auction_ended', 'equalto', False)|list|length }})
                 </button>
                 <button class="filter-btn" data-filter="no-auction" onclick="filterShirts('no-auction')">
                     Senza Asta ({{ shirts|rejectattr('has_auction')|list|length }})

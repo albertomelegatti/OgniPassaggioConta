@@ -412,6 +412,58 @@ def logout():
     return redirect(url_for('landing'))
 
 
+@app.route('/account')
+def account():
+    # Verifica che l'utente sia loggato
+    if not session.get('logged_in'):
+        flash('❌ Devi accedere per visualizzare il tuo account', 'error')
+        return redirect(url_for('login'))
+    
+    conn = None
+    cur = None
+    won_auctions = []
+    
+    try:
+        conn = get_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Recupera tutte le aste vinte dall'utente (concluse e con vincitore_attuale = username)
+        cur.execute('''
+            SELECT asta.id, asta.data_fine, asta.offerta_attuale, 
+                   maglia.id as maglia_id, maglia.titolo, maglia.descrizione, 
+                   maglia.sport, maglia.foto
+            FROM asta
+            JOIN maglia ON asta.id_maglia = maglia.id
+            WHERE asta.vincitore_attuale = %s
+            AND asta.stato = 'conclusa'
+            ORDER BY asta.data_fine DESC
+        ''', (session.get('username'),))
+        
+        auctions_raw = cur.fetchall()
+        
+        for auction in auctions_raw:
+            foto_list = parse_foto_urls(auction['foto'], auction['titolo'])
+            won_auctions.append({
+                'id': auction['id'],
+                'maglia_id': auction['maglia_id'],
+                'title': auction['titolo'],
+                'description': auction['descrizione'],
+                'final_price': auction['offerta_attuale'],
+                'end_time': formatta_data(auction['data_fine']),
+                'sport': auction['sport'],
+                'image': foto_list[0]  # Prima foto
+            })
+        
+    except Exception as e:
+        print(f"Error fetching won auctions: {e}")
+        flash('Errore nel caricamento delle aste vinte', 'error')
+        
+    finally:
+        release_connection(conn, cur)
+    
+    return render_template('user.html', won_auctions=won_auctions, username=session.get('username'))
+
+
 
 
 

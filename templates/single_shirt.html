@@ -432,6 +432,40 @@
         color: #991b1b;
     }
 
+    /* WINNER MESSAGE */
+    .winner-message {
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        border: 2px solid #fcd34d;
+        border-radius: 12px;
+        padding: 16px;
+        margin-top: 16px;
+    }
+
+    .winner-message-content {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+    }
+
+    .winner-icon {
+        font-size: 2rem;
+        flex-shrink: 0;
+    }
+
+    .winner-message-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #92400e;
+        margin: 0 0 8px 0;
+    }
+
+    .winner-message-text {
+        font-size: 0.9rem;
+        color: #78350f;
+        margin: 0;
+        line-height: 1.6;
+    }
+
     /* RELATED SHIRTS */
     /* Removed - section no longer used */
 
@@ -525,13 +559,11 @@
                     <div class="shirt-metadata">
                         {% if shirt.team %}
                         <span class="metadata-item">
-                            <span>🏟️</span>
                             <span>{{ shirt.team }}</span>
                         </span>
                         {% endif %}
                         {% if shirt.year %}
                         <span class="metadata-item">
-                            <span>📅</span>
                             <span>{{ shirt.year }}</span>
                         </span>
                         {% endif %}
@@ -567,13 +599,28 @@
                     {% if shirt.auction_ended %}
                     <div class="auction-info" style="background: #fee2e2; border-color: #fca5a5;">
                         <span class="auction-label" style="color: #991b1b;">Asta Conclusa</span>
-                        <div class="auction-value" style="color: #991b1b;">✅ Chiusa</div>
+                        <div class="auction-value" style="color: #991b1b;">Chiusa</div>
                         {% if shirt.current_winner %}
                         <p class="price-subtext">
                             <strong>Vincitore:</strong> {{ shirt.current_winner }}
                         </p>
                         {% endif %}
                     </div>
+                    
+                    <!-- Message for auction winner -->
+                    {% if session.get('logged_in') and session.get('username') == shirt.current_winner %}
+                    <div class="winner-message">
+                        <div class="winner-message-content">
+                            <div>
+                                <h3 class="winner-message-title">Complimenti! Hai vinto l'asta!</h3>
+                                <p class="winner-message-text">
+                                    Controlla la <strong>cartella spam</strong> della tua casella di posta per il messaggio di conferma della vittoria. 
+                                    Una volta trovata, <strong>segnala l'email come non spam</strong> per assicurarti di ricevere futuri aggiornamenti.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                     {% else %}
                     <div class="auction-info active">
                         <span class="auction-label">Asta Attiva</span>
