@@ -166,7 +166,7 @@ def auction_ended():
         print(f"\n📤 Inviando email a {winner_email}...")
         msg = Message(
             subject="Congratulazioni! Hai vinto l'asta",
-            sender=current_app.config['MAIL_DEFAULT_SENDER'],
+            sender=("Ogni Passaggio Conta", current_app.config['MAIL_DEFAULT_SENDER']),
             recipients=[winner_email],
             html=html_body
         )
@@ -216,7 +216,7 @@ def send_test_email():
         
         msg = Message(
             subject="✅ Email di test - Ogni Passaggio Conta",
-            sender=sender,
+            sender=("Ogni Passaggio Conta", sender),
             recipients=[test_recipient],
             body="Funziona! Email inviata da Flask su Render."
         )
