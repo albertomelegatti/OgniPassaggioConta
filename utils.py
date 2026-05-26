@@ -52,25 +52,13 @@ email_bp = Blueprint('email', __name__)
 def init_email(app):
     """Configura Flask-Mail con l'app"""
     global mail
-    
-    # Verifica che le variabili d'ambiente siano presenti
-    mail_user = os.getenv('MAIL_USERNAME')
-    mail_pass = os.getenv('MAIL_PASSWORD')
-    
-    if not mail_user or not mail_pass:
-        print("❌ ERRORE: MAIL_USERNAME o MAIL_PASSWORD non configurati!")
-        return
-    
     app.config['MAIL_SERVER'] = 'smtp.gmail.com'
     app.config['MAIL_PORT'] = 587
     app.config['MAIL_USE_TLS'] = True
-    app.config['MAIL_USERNAME'] = mail_user
-    app.config['MAIL_PASSWORD'] = mail_pass
-    app.config['MAIL_DEFAULT_SENDER'] = mail_user
-    app.config['MAIL_DEBUG'] = True  # Abilita debug di Flask-Mail
-    
+    app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
+    app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+    app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_USERNAME')
     mail = Mail(app)
-    print(f"✅ Email configurata correttamente per {mail_user}")
 
 @email_bp.route("/email/status")
 def email_status():
