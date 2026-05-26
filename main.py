@@ -2,6 +2,9 @@ import os
 import re
 import time
 import json
+import traceback
+import logging
+import sys
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask.cli import load_dotenv
@@ -13,8 +16,24 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from admin import admin_bp
 from utils import email_bp, init_email, parse_foto_urls
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    stream=sys.stdout
+)
+logger = logging.getLogger(__name__)
+
 load_dotenv()
-init_pool()
+logger.info("🚀 Starting OgniPassaggioConta application...")
+
+try:
+    init_pool()
+    logger.info("✅ Database pool initialized successfully")
+except Exception as e:
+    logger.error(f"❌ Failed to initialize database pool: {e}")
+    logger.error(traceback.format_exc())
+    sys.exit(1)
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "chiave_segreta_default_per_sviluppo")
@@ -54,13 +73,38 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 Session(app)
 
 init_email(app)
+logger.info("✅ Email service initialized")
 
 app.register_blueprint(admin_bp)
 app.register_blueprint(email_bp)
+logger.info("✅ Blueprints registered (admin, email)")
 
 # Crea la tabella delle sessioni al primo avvio
 with app.app_context():
     db.create_all()
+    logger.info("✅ Database tables created/verified")
+
+# ===== ERROR HANDLERS =====
+
+@app.errorhandler(404)
+def not_found(error):
+    logger.warning(f"404 Not Found: {request.path}")
+    return jsonify({'error': 'Route not found', 'path': request.path}), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    logger.error(f"500 Internal Server Error: {error}")
+    logger.error(traceback.format_exc())
+    return jsonify({'error': 'Internal server error', 'details': str(error)}), 500
+
+
+@app.before_request
+def before_request_logging():
+    logger.debug(f"Request: {request.method} {request.path} from {request.remote_addr}")
+
+
+# ===== ROUTES =====
 
 
 
@@ -566,7 +610,47 @@ def formatta_data(data_input):
 
 @app.route('/health')
 def health():
-    return {'status': 'ok'}, 200
+    logger.info("Health check requested")
+    db_status = "unknown"
+    try:
+        # Verifica connessione al database
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT 1;")
+        release_connection(conn, cur)
+        db_status = "connected"
+    except Exception as e:
+        logger.error(f"Database health check failed: {e}")
+        db_status = f"error: {str(e)}"
+    
+    return {
+        'status': 'ok',
+        'database': db_status,
+        'environment': 'production' if is_production else 'development',
+        'timestamp': datetime.now().isoformat()
+    }, 200 if db_status == "connected" else 503
+
+
+@app.route('/debug')
+def debug_info():
+    """Debug route - shows app status (only in development)"""
+    if is_production:
+        return jsonify({'error': 'Not available in production'}), 403
+    
+    return {
+        'app': 'OgniPassaggioConta',
+        'environment': 'production' if is_production else 'development',
+        'debug_mode': app.debug,
+        'render_deployment_id': os.getenv("RENDER_DEPLOYMENT_ID", "None"),
+        'database_url_set': bool(os.getenv("DATABASE_URL")),
+        'secret_key_set': bool(os.getenv("SECRET_KEY")),
+        'upload_folder': app.config['UPLOAD_FOLDER'],
+        'upload_folder_exists': os.path.exists(app.config['UPLOAD_FOLDER']),
+        'blueprints_registered': list(app.blueprints.keys()),
+        'static_folder': app.static_folder,
+        'static_folder_exists': os.path.exists(app.static_folder) if app.static_folder else False,
+        'timestamp': datetime.now().isoformat()
+    }, 200
 
 
 @app.route('/coffee')
@@ -576,4 +660,7 @@ def coffee():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080, debug=True)
+    port = int(os.getenv("PORT", 8080))
+    logger.info(f"🌐 Starting server on port {port}")
+    logger.info(f"📍 Environment: {'PRODUCTION (Render)' if is_production else 'DEVELOPMENT'}")
+    app.run(host="0.0.0.0", port=port, debug=not is_production)

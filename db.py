@@ -1,11 +1,17 @@
 import os
 import psycopg2
 import time
+import sys
+import logging
 from psycopg2.extras import RealDictCursor
 from psycopg2 import OperationalError
 from psycopg2.pool import SimpleConnectionPool, ThreadedConnectionPool
 from dotenv import load_dotenv
 from urllib.parse import urlparse
+
+# Setup logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -17,44 +23,63 @@ def init_pool():
     
     global pool
     if pool is not None:
-        print("Il pool è già inizializzato.")
+        logger.info("✅ Connection pool already initialized")
         return pool
 
     if not DATABASE_URL:
-        raise ValueError("Variabile d'ambiente DATABASE_URL non trovata")
+        logger.critical("❌ DATABASE_URL environment variable not set!")
+        logger.critical("This is required for the application to run.")
+        logger.critical("Please set DATABASE_URL in Render environment variables.")
+        # Non crashiamo subito, lasciamo che l'app parta ma con warning
+        return None
 
+    logger.info(f"📍 Connecting to database: {DATABASE_URL[:50]}...")
+    
     result = urlparse(DATABASE_URL)
 
     params = {
         "user": result.username,
-        "password": result.password,
+        "password": "***" if result.password else None,  # Hide password in logs
         "host": result.hostname,
         "port": result.port,
         "dbname": "postgres",
         "connect_timeout": 10
     }
+    
+    logger.info(f"📍 Connection params: user={result.username}, host={result.hostname}, port={result.port}")
 
     try:
+        logger.info("🔄 Creating ThreadedConnectionPool...")
         pool = psycopg2.pool.ThreadedConnectionPool(
             minconn = 2,
             maxconn = 10,
-            **params
+            **{k: v for k, v in {
+                "user": result.username,
+                "password": result.password,
+                "host": result.hostname,
+                "port": result.port,
+                "dbname": "postgres",
+                "connect_timeout": 10
+            }.items() if v is not None}
         )
-        print("✅ Pool di connessioni Supabase inizializzato con successo!")
+        logger.info("✅ Connection pool initialized successfully!")
         return pool
-    except psycopg2.Error as e:
-        print(f"❌ Errore critico nell'inizializzazione del pool: {e}")
+    except psycopg2.OperationalError as e:
+        logger.error(f"❌ Database connection failed (OperationalError): {e}")
+        logger.error(f"   Host: {result.hostname}")
+        logger.error(f"   Port: {result.port}")
+        logger.error(f"   User: {result.username}")
+        logger.error("   Check your DATABASE_URL and Render environment variables")
         pool = None
-        raise
-
-
-def log_pool_status(action):
-    #Stampa lo stato corrente del pool
-    global pool
-    
-    if not pool:
-        print("⚠️ Pool non inizializzato.")
-
+        return None
+    except psycopg2.Error as e:
+        logger.error(f"❌ Error initializing connection pool: {e}")
+        pool = None
+        return None
+    except Exception as e:
+        logger.error(f"❌ Unexpected error initializing pool: {e}")
+        pool = None
+        return None
 
 def get_connection():
     
@@ -63,10 +88,11 @@ def get_connection():
     global pool
 
     if pool is None:
-        raise Exception("Connection pool non inizializzato. Chiama init_pool() prima.")
+        logger.error("❌ Connection pool not initialized")
+        logger.error("This usually means DATABASE_URL is not set or connection failed")
+        raise Exception("Connection pool not initialized. Check DATABASE_URL environment variable.")
     
     retries = 0
-    log_pool_status("BEFORE_GETCONN")
 
     while retries < max_retries:
         try:
@@ -76,20 +102,19 @@ def get_connection():
             # Verifica che la connessione sia ancora viva
             with conn.cursor() as cur:
                 cur.execute("SELECT 1;")
-            log_pool_status("CONNECTION_OK")
             return conn
         
         except OperationalError as e:
             retries += 1
-            print(f"[DB] Tentativo {retries}/{max_retries} fallito: {e}")
+            logger.warning(f"[DB] Attempt {retries}/{max_retries} failed: {e}")
 
             if retries < max_retries:
-                print(f"[DB] Ritento tra {cooldown} secondi...")
+                logger.info(f"[DB] Retrying in {cooldown} seconds...")
                 time.sleep(cooldown)
-
             else:
-                print("[DB] ❌ Impossibile connettersi al database dopo ripetuti tentativi.")
+                logger.error("[DB] ❌ Unable to connect to database after retries")
                 raise
+
 
 
 #def get_connection():
@@ -108,7 +133,7 @@ def release_connection(conn=None, cur=None):
             try:
                 cur.close()
             except Exception as e:
-                print(f"⚠️ Impossibile chiudere il cursore: {e}")
+                logger.warning(f"⚠️ Error closing cursor: {e}")
 
         # Poi gestisci la connessione
         try:
@@ -116,30 +141,28 @@ def release_connection(conn=None, cur=None):
                 # Prova a fare rollback prima di restituire al pool
                 try:
                     conn.rollback()
-                    # print(f"[DB] Connection rolled back successfully")
                 except Exception as e:
-                    print(f"⚠️ Errore durante rollback: {e}")
-                    # Prova comunque a restituire la connessione
+                    logger.warning(f"⚠️ Error during rollback: {e}")
                 
                 # Restituisci la connessione al pool
                 try:
                     pool.putconn(conn, close=False)
                 except Exception as e:
-                    print(f"⚠️ Errore durante putconn: {e}")
+                    logger.warning(f"⚠️ Error during putconn: {e}")
                     # Chiudi la connessione se non riesci a metterla nel pool
                     try:
                         conn.close()
                     except Exception:
                         pass
         except Exception as e:
-            print(f"⚠️ Errore durante il rilascio connessione al pool: {e}")
+            logger.warning(f"⚠️ Error releasing connection: {e}")
             try:
                 conn.close()
             except Exception:
                 pass
 
     except Exception as e:
-        print(f"⚠️ Errore imprevisto durante release_connection: {e}")
+        logger.warning(f"⚠️ Unexpected error in release_connection: {e}")
         try:
             if conn and not conn.closed:
                 conn.close()
