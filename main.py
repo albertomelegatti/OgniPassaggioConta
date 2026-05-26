@@ -16,6 +16,13 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from admin import admin_bp
 from utils import email_bp, init_email, parse_foto_urls
 
+# WhiteNoise for serving static files in production
+try:
+    from whitenoise import WhiteNoise
+    WHITENOISE_AVAILABLE = True
+except ImportError:
+    WHITENOISE_AVAILABLE = False
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -35,7 +42,16 @@ except Exception as e:
     logger.error(traceback.format_exc())
     sys.exit(1)
 
-app = Flask(__name__)
+# Configure Flask with explicit paths for static and template folders
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_FOLDER = os.path.join(BASE_DIR, 'static')
+TEMPLATE_FOLDER = os.path.join(BASE_DIR, 'templates')
+
+logger.info(f"📂 Base directory: {BASE_DIR}")
+logger.info(f"📂 Static folder: {STATIC_FOLDER} (exists: {os.path.exists(STATIC_FOLDER)})")
+logger.info(f"📂 Template folder: {TEMPLATE_FOLDER} (exists: {os.path.exists(TEMPLATE_FOLDER)})")
+
+app = Flask(__name__, static_folder=STATIC_FOLDER, template_folder=TEMPLATE_FOLDER)
 app.secret_key = os.getenv("SECRET_KEY", "chiave_segreta_default_per_sviluppo")
 
 is_production = bool(os.getenv("RENDER_DEPLOYMENT_ID"))
@@ -72,6 +88,13 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 
 Session(app)
 
+# Configure WhiteNoise for serving static files in production
+if WHITENOISE_AVAILABLE:
+    app.wsgi_app = WhiteNoise(app.wsgi_app, root=STATIC_FOLDER, index_file=False)
+    logger.info("✅ WhiteNoise configured for static file serving")
+else:
+    logger.warning("⚠️  WhiteNoise not available, static files may not be served correctly on Render")
+
 init_email(app)
 logger.info("✅ Email service initialized")
 
@@ -88,7 +111,19 @@ with app.app_context():
 
 @app.errorhandler(404)
 def not_found(error):
-    logger.warning(f"404 Not Found: {request.path}")
+    logger.warning(f"404 Not Found: {request.method} {request.path}")
+    logger.warning(f"Referrer: {request.referrer}")
+    logger.warning(f"User-Agent: {request.user_agent}")
+    
+    # Se è una richiesta HTML, ritorna messaggio di errore
+    if request.accept_mimetypes.best == 'text/html':
+        return {
+            'error': 'Route not found',
+            'path': request.path,
+            'method': request.method,
+            'available_routes': list(app.url_map.iter_rules()),
+        }, 404
+    
     return jsonify({'error': 'Route not found', 'path': request.path}), 404
 
 
@@ -97,6 +132,14 @@ def internal_error(error):
     logger.error(f"500 Internal Server Error: {error}")
     logger.error(traceback.format_exc())
     return jsonify({'error': 'Internal server error', 'details': str(error)}), 500
+
+
+@app.after_request
+def after_request_logging(response):
+    """Log all responses including 404s"""
+    if response.status_code >= 400:
+        logger.warning(f"Response {response.status_code}: {request.method} {request.path}")
+    return response
 
 
 @app.before_request
@@ -110,12 +153,41 @@ def before_request_logging():
 
 @app.route('/')
 def landing():
-    return render_template('index.html', username=session.get('username'))
+    try:
+        logger.info("Landing page requested")
+        logger.info(f"Template folder: {app.template_folder}")
+        logger.info(f"Template folder exists: {os.path.exists(app.template_folder)}")
+        
+        # List available templates
+        if os.path.exists(app.template_folder):
+            templates = os.listdir(app.template_folder)
+            logger.info(f"Available templates: {templates}")
+        
+        result = render_template('index.html', username=session.get('username'))
+        logger.info("Landing page rendered successfully")
+        return result
+    except Exception as e:
+        logger.error(f"❌ Error rendering landing page: {e}")
+        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(traceback.format_exc())
+        return {
+            'error': 'Failed to render landing page',
+            'details': str(e),
+            'error_type': type(e).__name__,
+            'template_folder': app.template_folder,
+            'template_folder_exists': os.path.exists(app.template_folder)
+        }, 500
 
 
 @app.route('/sports')
 def sports():
-    return render_template('sports.html', username=session.get('username'))
+    try:
+        logger.info("Sports page requested")
+        return render_template('sports.html', username=session.get('username'))
+    except Exception as e:
+        logger.error(f"Error rendering sports page: {e}")
+        logger.error(traceback.format_exc())
+        return {'error': 'Failed to render sports page', 'details': str(e)}, 500
 
 
 @app.route('/shirts/<sport>')
@@ -608,6 +680,51 @@ def formatta_data(data_input):
     return str(data_input)
 
 
+@app.route('/test')
+def test():
+    """Simple test endpoint"""
+    return {
+        'status': 'ok',
+        'message': 'Test endpoint working',
+        'timestamp': datetime.now().isoformat(),
+        'render_deployment_id': os.getenv("RENDER_DEPLOYMENT_ID")
+    }, 200
+
+
+@app.route('/test/template')
+def test_template():
+    """Test if template rendering works"""
+    try:
+        logger.info("Test template endpoint called")
+        from jinja2 import TemplateNotFound
+        
+        # Try to list available templates
+        template_names = []
+        try:
+            import os
+            templates_dir = os.path.join(app.root_path, 'templates')
+            if os.path.exists(templates_dir):
+                template_names = os.listdir(templates_dir)
+        except Exception as e:
+            logger.error(f"Error listing templates: {e}")
+        
+        return {
+            'status': 'ok',
+            'message': 'Template test endpoint working',
+            'template_dir': app.jinja_loader.searchpath if hasattr(app.jinja_loader, 'searchpath') else 'unknown',
+            'available_templates': template_names,
+            'timestamp': datetime.now().isoformat()
+        }, 200
+    except Exception as e:
+        logger.error(f"Error in test_template: {e}")
+        logger.error(traceback.format_exc())
+        return {
+            'status': 'error',
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }, 500
+
+
 @app.route('/health')
 def health():
     logger.info("Health check requested")
@@ -650,6 +767,75 @@ def debug_info():
         'static_folder': app.static_folder,
         'static_folder_exists': os.path.exists(app.static_folder) if app.static_folder else False,
         'timestamp': datetime.now().isoformat()
+    }, 200
+
+
+@app.route('/debug/templates')
+def debug_templates():
+    """Check if all required templates exist (only in development)"""
+    if is_production:
+        return jsonify({'error': 'Not available in production'}), 403
+    
+    templates_dir = os.path.join(app.root_path, 'templates')
+    logger.info(f"Checking templates in: {templates_dir}")
+    
+    required_templates = [
+        'index.html',
+        'sports.html',
+        'shirts.html',
+        'single_shirt.html',
+        'login.html',
+        'signup.html',
+        'user.html',
+        'admin.html',
+        'coffee.html',
+        'base.html'
+    ]
+    
+    templates_status = {}
+    for template in required_templates:
+        template_path = os.path.join(templates_dir, template)
+        exists = os.path.exists(template_path)
+        templates_status[template] = {
+            'exists': exists,
+            'path': template_path,
+            'size': os.path.getsize(template_path) if exists else None
+        }
+    
+    return {
+        'templates_dir': templates_dir,
+        'templates_dir_exists': os.path.exists(templates_dir),
+        'templates': templates_status,
+        'all_templates_found': all(t['exists'] for t in templates_status.values())
+    }, 200
+
+
+@app.route('/debug/static')
+def debug_static():
+    """Check if static files exist (only in development)"""
+    if is_production:
+        return jsonify({'error': 'Not available in production'}), 403
+    
+    static_dir = app.static_folder
+    logger.info(f"Checking static files in: {static_dir}")
+    
+    static_status = {}
+    if os.path.exists(static_dir):
+        for root, dirs, files in os.walk(static_dir):
+            rel_root = os.path.relpath(root, static_dir)
+            for file in files:
+                rel_path = os.path.join(rel_root, file) if rel_root != '.' else file
+                file_path = os.path.join(root, file)
+                static_status[rel_path] = {
+                    'size': os.path.getsize(file_path),
+                    'path': file_path
+                }
+    
+    return {
+        'static_dir': static_dir,
+        'static_dir_exists': os.path.exists(static_dir),
+        'files_found': len(static_status),
+        'static_files': static_status
     }, 200
 
 
