@@ -185,17 +185,14 @@ def check_connection():
             cur.execute("SELECT 1")
             cur.fetchone()
         
-        print("✅ Controllo di connessione riuscito. Pool OK.")
         return True
         
     except psycopg2.OperationalError as e:
         # Cattura gli errori operativi (timeout, rifiuto, SSL EOF)
-        print(f"❌ ERRORE CRITICO DI CONNESSIONE: {e}")
         return False
         
     except Exception as e:
         # Cattura altri errori generici (es. pool non inizializzato)
-        print(f"❌ Errore generico durante il controllo di connessione: {e}")
         return False
         
     finally:
@@ -218,7 +215,7 @@ def keep_awake():
         with conn.cursor() as cur:
             cur.execute("SELECT 1")  # semplice query di test
     except Exception as e:
-        print("⚠️ Errore in keep_awake:", e)
+        pass
     finally:
         if conn:
             release_connection(conn)
@@ -241,13 +238,11 @@ class DatabaseConnection:
         """Rilascia la connessione al pool"""
         try:
             if exc_type:
-                print(f"[DatabaseConnection] Exception occurred: {exc_type.__name__}: {exc_val}")
                 if self.conn and not self.conn.closed:
                     self.conn.rollback()
             elif self.conn and not self.conn.closed:
                 self.conn.commit()
         except Exception as e:
-            print(f"[DatabaseConnection] Error in exit: {e}")
             if self.conn and not self.conn.closed:
                 try:
                     self.conn.rollback()

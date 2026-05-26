@@ -32,13 +32,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 load_dotenv()
-logger.info("🚀 Starting OgniPassaggioConta application...")
 
 try:
     init_pool()
-    logger.info("✅ Database pool initialized successfully")
 except Exception as e:
-    logger.error(f"❌ Failed to initialize database pool: {e}")
+    logger.error(f"Failed to initialize database pool: {e}")
     logger.error(traceback.format_exc())
     sys.exit(1)
 
@@ -46,10 +44,6 @@ except Exception as e:
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_FOLDER = os.path.join(BASE_DIR, 'static')
 TEMPLATE_FOLDER = os.path.join(BASE_DIR, 'templates')
-
-logger.info(f"📂 Base directory: {BASE_DIR}")
-logger.info(f"📂 Static folder: {STATIC_FOLDER} (exists: {os.path.exists(STATIC_FOLDER)})")
-logger.info(f"📂 Template folder: {TEMPLATE_FOLDER} (exists: {os.path.exists(TEMPLATE_FOLDER)})")
 
 app = Flask(__name__, static_folder=STATIC_FOLDER, template_folder=TEMPLATE_FOLDER)
 app.secret_key = os.getenv("SECRET_KEY", "chiave_segreta_default_per_sviluppo")
@@ -91,16 +85,13 @@ Session(app)
 # Configure WhiteNoise for serving static files in production
 if WHITENOISE_AVAILABLE:
     app.wsgi_app = WhiteNoise(app.wsgi_app, root=STATIC_FOLDER, index_file=False)
-    logger.info("✅ WhiteNoise configured for static file serving")
 else:
-    logger.warning("⚠️  WhiteNoise not available, static files may not be served correctly on Render")
+    logger.warning("WhiteNoise not available, static files may not be served correctly on Render")
 
 init_email(app)
-logger.info("✅ Email service initialized")
 
 app.register_blueprint(admin_bp)
 app.register_blueprint(email_bp)
-logger.info("✅ Blueprints registered (admin, email)")
 
 # Crea la tabella delle sessioni al primo avvio
 with app.app_context():
@@ -748,97 +739,6 @@ def health():
     }, 200 if db_status == "connected" else 503
 
 
-@app.route('/debug')
-def debug_info():
-    """Debug route - shows app status (only in development)"""
-    if is_production:
-        return jsonify({'error': 'Not available in production'}), 403
-    
-    return {
-        'app': 'OgniPassaggioConta',
-        'environment': 'production' if is_production else 'development',
-        'debug_mode': app.debug,
-        'render_deployment_id': os.getenv("RENDER_DEPLOYMENT_ID", "None"),
-        'database_url_set': bool(os.getenv("DATABASE_URL")),
-        'secret_key_set': bool(os.getenv("SECRET_KEY")),
-        'upload_folder': app.config['UPLOAD_FOLDER'],
-        'upload_folder_exists': os.path.exists(app.config['UPLOAD_FOLDER']),
-        'blueprints_registered': list(app.blueprints.keys()),
-        'static_folder': app.static_folder,
-        'static_folder_exists': os.path.exists(app.static_folder) if app.static_folder else False,
-        'timestamp': datetime.now().isoformat()
-    }, 200
-
-
-@app.route('/debug/templates')
-def debug_templates():
-    """Check if all required templates exist (only in development)"""
-    if is_production:
-        return jsonify({'error': 'Not available in production'}), 403
-    
-    templates_dir = os.path.join(app.root_path, 'templates')
-    logger.info(f"Checking templates in: {templates_dir}")
-    
-    required_templates = [
-        'index.html',
-        'sports.html',
-        'shirts.html',
-        'single_shirt.html',
-        'login.html',
-        'signup.html',
-        'user.html',
-        'admin.html',
-        'coffee.html',
-        'base.html'
-    ]
-    
-    templates_status = {}
-    for template in required_templates:
-        template_path = os.path.join(templates_dir, template)
-        exists = os.path.exists(template_path)
-        templates_status[template] = {
-            'exists': exists,
-            'path': template_path,
-            'size': os.path.getsize(template_path) if exists else None
-        }
-    
-    return {
-        'templates_dir': templates_dir,
-        'templates_dir_exists': os.path.exists(templates_dir),
-        'templates': templates_status,
-        'all_templates_found': all(t['exists'] for t in templates_status.values())
-    }, 200
-
-
-@app.route('/debug/static')
-def debug_static():
-    """Check if static files exist (only in development)"""
-    if is_production:
-        return jsonify({'error': 'Not available in production'}), 403
-    
-    static_dir = app.static_folder
-    logger.info(f"Checking static files in: {static_dir}")
-    
-    static_status = {}
-    if os.path.exists(static_dir):
-        for root, dirs, files in os.walk(static_dir):
-            rel_root = os.path.relpath(root, static_dir)
-            for file in files:
-                rel_path = os.path.join(rel_root, file) if rel_root != '.' else file
-                file_path = os.path.join(root, file)
-                static_status[rel_path] = {
-                    'size': os.path.getsize(file_path),
-                    'path': file_path
-                }
-    
-    return {
-        'static_dir': static_dir,
-        'static_dir_exists': os.path.exists(static_dir),
-        'files_found': len(static_status),
-        'static_files': static_status
-    }, 200
-
-
 @app.route('/coffee')
 def coffee():
     """Pagina per supportare il progetto con PayPal"""
@@ -847,6 +747,4 @@ def coffee():
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
-    logger.info(f"🌐 Starting server on port {port}")
-    logger.info(f"📍 Environment: {'PRODUCTION (Render)' if is_production else 'DEVELOPMENT'}")
     app.run(host="0.0.0.0", port=port, debug=not is_production)

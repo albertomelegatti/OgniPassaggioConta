@@ -74,61 +74,34 @@ def email_status():
 def auction_ended():
     """Webhook per notificare il vincitore quando l'asta termina"""
     
-    print("\n" + "="*60)
-    print("🔔 WEBHOOK /auction-ended ricevuto")
-    print("="*60)
-    
     # Verifica che mail sia stato inizializzato
     if mail is None:
-        print("❌ ERRORE CRITICO: Email non inizializzata")
-        print("   Assicurati che init_email(app) sia stato chiamato in main.py")
         return {"error": "Email non configurata", "status": 500}, 500
-    
-    print("✅ Mail object trovato")
     
     conn = None
     cur = None
     
     try:
-        # Debug: stampa il payload ricevuto
         payload = request.get_json()
-        print(f"\n📋 Payload ricevuto: {json.dumps(payload, indent=2, default=str)}")
         
         if not payload or 'record' not in payload:
-            print("❌ Payload non valido - 'record' non trovato")
             return {"error": "Payload non valido"}, 400
         
         auction_id = payload['record'].get('id')
         if not auction_id:
-            print("❌ ID asta mancante nel payload")
             return {"error": "ID asta mancante"}, 400
-        
-        print(f"\n🎯 Processando asta ID: {auction_id}")
         
         old_state = payload.get('old_record', {}).get('stato')
         new_state = payload['record'].get('stato')
         
-        print(f"   Stato precedente: {old_state}")
-        print(f"   Nuovo stato: {new_state}")
-        
         if old_state != 'in_corso' or new_state != 'conclusa':
-            print(f"⚠️ Transizione stato non valida - non è una conclusione")
             return {"message": "Transizione non richiesta (non è una conclusione)"}, 200
-        
-        print("✅ Transizione stato valida")
     except Exception as e:
-        print(f"❌ Errore parsing payload: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return {"error": f"Errore parsing: {str(e)}"}, 400
     
     try:
-        print("\n🔌 Connessione al database...")
         conn = get_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        print("✅ Connessione riuscita")
-        
-        print(f"\n🔍 Cercando asta {auction_id}...")
         cur.execute('''
                         SELECT a.offerta_attuale, a.vincitore_attuale, m.titolo, m.descrizione, m.foto, u.email
                         FROM asta a
@@ -139,13 +112,7 @@ def auction_ended():
         auction_info = cur.fetchone()
         
         if not auction_info:
-            print(f"❌ Asta {auction_id} non trovata nel database")
             return {"error": "Asta non trovata"}, 404
-        
-        print("✅ Asta trovata")
-        print(f"   Titolo: {auction_info['titolo']}")
-        print(f"   Vincitore: {auction_info['vincitore_attuale']}")
-        print(f"   Email: {auction_info['email']}")
         
         # Verifica che il vincitore abbia un'email
         winner_email = auction_info.get('email')

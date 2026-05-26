@@ -420,7 +420,6 @@ def compress_image(file, max_size_mb=2):
             size = len(output.getvalue())
             
             if size <= max_size_bytes:
-                print(f"✅ Immagine compressa: qualità {quality}, size {size/1024/1024:.2f}MB")
                 output.seek(0)
                 return output
             
@@ -431,7 +430,6 @@ def compress_image(file, max_size_mb=2):
         output.seek(0)
         output.truncate(0)
         img.save(output, format='JPEG', quality=10, optimize=True)
-        print(f"✅ Immagine ridimensionata: size {len(output.getvalue())/1024/1024:.2f}MB")
         output.seek(0)
         return output
         
@@ -449,7 +447,6 @@ def upload_to_supabase(file, folder="maglie"):
         # Comprimi l'immagine (max 2MB)
         compressed_file = compress_image(file, max_size_mb=2)
         if not compressed_file:
-            print(f"❌ Impossibile comprimere l'immagine")
             return None
         
         # Genera nome file univoco
@@ -465,12 +462,10 @@ def upload_to_supabase(file, folder="maglie"):
         
         # Genera l'URL pubblico
         public_url = supabase.storage.from_(supabase_bucket).get_public_url(file_path)
-        print(f"✅ Immagine caricata su Supabase: {file_path}")
         
         return public_url
     
     except Exception as e:
-        print(f"❌ Error uploading to Supabase: {e}")
         return None
 
 
