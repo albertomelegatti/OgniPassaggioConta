@@ -1,8 +1,6 @@
 import os
 import re
-import time
-import json
-from datetime import datetime, timedelta
+from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask.cli import load_dotenv
 from flask_session import Session
@@ -14,15 +12,13 @@ from admin import admin_bp
 from utils import email_bp, init_email, parse_foto_urls
 
 load_dotenv()
-
 init_pool()
 
 # Configure Flask with explicit paths for static and template folders
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_FOLDER = os.path.join(BASE_DIR, 'static')
-TEMPLATE_FOLDER = os.path.join(BASE_DIR, 'templates')
 
-app = Flask(__name__, static_folder=STATIC_FOLDER, template_folder=TEMPLATE_FOLDER)
+app = Flask(__name__, static_folder=STATIC_FOLDER)
 app.secret_key = os.getenv("SECRET_KEY", "chiave_segreta_default_per_sviluppo")
 
 is_production = bool(os.getenv("RENDER_DEPLOYMENT_ID"))
@@ -68,55 +64,16 @@ app.register_blueprint(email_bp)
 with app.app_context():
     db.create_all()
 
-# ===== ERROR HANDLERS =====
-
-@app.errorhandler(404)
-def not_found(error):
-    # Se è una richiesta HTML, ritorna messaggio di errore
-    if request.accept_mimetypes.best == 'text/html':
-        return {
-            'error': 'Route not found',
-            'path': request.path,
-            'method': request.method,
-            'available_routes': list(app.url_map.iter_rules()),
-        }, 404
-    
-    return jsonify({'error': 'Route not found', 'path': request.path}), 404
-
-
-@app.errorhandler(500)
-def internal_error(error):
-    return jsonify({'error': 'Internal server error', 'details': str(error)}), 500
-
-
-
-
-
-# ===== ROUTES =====
-
-
 
 @app.route('/')
 def landing():
-    try:
-        result = render_template('index.html', username=session.get('username'))
-        return result
-    except Exception as e:
-        return {
-            'error': 'Failed to render landing page',
-            'details': str(e),
-            'error_type': type(e).__name__,
-            'template_folder': app.template_folder,
-            'template_folder_exists': os.path.exists(app.template_folder)
-        }, 500
+    return render_template('index.html', username=session.get('username'))
+ 
 
 
 @app.route('/sports')
 def sports():
-    try:
         return render_template('sports.html', username=session.get('username'))
-    except Exception as e:
-        return {'error': 'Failed to render sports page', 'details': str(e)}, 500
 
 
 @app.route('/shirts/<sport>')
@@ -141,7 +98,7 @@ def shirts(sport):
         # LEFT JOIN restituisce tutte le maglie, anche quelle senza asta (asta.id sarà None)
         
         for shirt in shirts_raw:
-            # Parsa foto con funzione ottimizzata
+            # Parsa foto
             foto_list = parse_foto_urls(shirt['foto'], shirt['titolo'])
             
             # Controlla lo stato dell'asta
@@ -264,7 +221,7 @@ def get_auction_data(asta_id):
 def make_offer(asta_id):
     
     if not session.get('logged_in'):
-        flash('❌ Devi accedere per fare un\'offerta', 'error')
+        flash('Devi accedere per fare un\'offerta', 'error')
         return redirect(url_for('login'))
     
     conn = None
@@ -279,6 +236,7 @@ def make_offer(asta_id):
         conn = get_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
         
+        
         # ATOMICA: Verifica e aggiorna in un'unica query con lock pessimistico
         cur.execute('''
             UPDATE asta 
@@ -286,7 +244,7 @@ def make_offer(asta_id):
                 data_fine = (NOW() AT TIME ZONE 'Europe/Rome') + INTERVAL '2 hours'
             WHERE id = %s 
                 AND stato = 'in_corso' 
-                AND (%s >= COALESCE(offerta_attuale, 0) + 1)
+                AND (%s >= offerta_attuale + 1)
             RETURNING offerta_attuale, data_fine
         ''', (offerta, session.get('username'), asta_id, offerta))
         
@@ -294,7 +252,7 @@ def make_offer(asta_id):
         
         if not updated_auction:
             # Recupera il valore attuale e lo stato per il messaggio d'errore
-            cur.execute('SELECT COALESCE(offerta_attuale, 0) as offerta_attuale, stato FROM asta WHERE id = %s', (asta_id,))
+            cur.execute('SELECT offerta_attuale, stato FROM asta WHERE id = %s', (asta_id,))
             asta_data = cur.fetchone()
             
             if not asta_data:
@@ -330,7 +288,7 @@ def make_offer(asta_id):
 def start_auction(maglia_id):
     
     if not session.get('logged_in'):
-        flash('❌ Devi accedere per avviare un\'asta', 'error')
+        flash('Devi accedere per avviare un\'asta', 'error')
         return redirect(url_for('login'))
     
     conn = None
@@ -403,7 +361,7 @@ def login():
         
         # Validazione campi
         if not username or not password:
-            flash('❌ Compila username e password', 'error')
+            flash('Compila username e password', 'error')
             return redirect(url_for('login'))
         
         conn = None
@@ -428,13 +386,13 @@ def login():
                 session['permessi'] = user['permessi']
                 session.permanent = True
                 
-                flash('✅ Login avvenuto con successo!', 'success')
+                flash('Login avvenuto con successo!', 'success')
                 return redirect(url_for('landing'))
             else:
-                flash('❌ Credenziali non valide. Riprova.', 'error')
+                flash('Credenziali non valide. Riprova.', 'error')
         
         except Exception as e:
-            flash('❌ Errore di connessione al database.', 'error')
+            flash(' Errore di connessione al database.', 'error')
             
         finally:
             release_connection(conn, cur)
@@ -455,7 +413,7 @@ def logout():
 def account():
     # Verifica che l'utente sia loggato
     if not session.get('logged_in'):
-        flash('❌ Devi accedere per visualizzare il tuo account', 'error')
+        flash('Devi accedere per visualizzare il tuo account', 'error')
         return redirect(url_for('login'))
     
     conn = None
@@ -602,71 +560,8 @@ def formatta_data(data_input):
     return str(data_input)
 
 
-@app.route('/test')
-def test():
-    """Simple test endpoint"""
-    return {
-        'status': 'ok',
-        'message': 'Test endpoint working',
-        'timestamp': datetime.now().isoformat(),
-        'render_deployment_id': os.getenv("RENDER_DEPLOYMENT_ID")
-    }, 200
-
-
-@app.route('/test/template')
-def test_template():
-    """Test if template rendering works"""
-    try:
-        from jinja2 import TemplateNotFound
-        
-        # Try to list available templates
-        template_names = []
-        try:
-            import os
-            templates_dir = os.path.join(app.root_path, 'templates')
-            if os.path.exists(templates_dir):
-                template_names = os.listdir(templates_dir)
-        except Exception:
-            pass
-        
-        return {
-            'status': 'ok',
-            'message': 'Template test endpoint working',
-            'template_dir': app.jinja_loader.searchpath if hasattr(app.jinja_loader, 'searchpath') else 'unknown',
-            'available_templates': template_names,
-            'timestamp': datetime.now().isoformat()
-        }, 200
-    except Exception as e:
-        return {
-            'status': 'error',
-            'error': str(e)
-        }, 500
-
-
-@app.route('/health')
-def health():
-    db_status = "unknown"
-    try:
-        # Verifica connessione al database
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute("SELECT 1;")
-        release_connection(conn, cur)
-        db_status = "connected"
-    except Exception as e:
-        db_status = f"error: {str(e)}"
-    
-    return {
-        'status': 'ok',
-        'database': db_status,
-        'environment': 'production' if is_production else 'development',
-        'timestamp': datetime.now().isoformat()
-    }, 200 if db_status == "connected" else 503
-
-
 @app.route('/coffee')
 def coffee():
-    """Pagina per supportare il progetto con PayPal"""
     return render_template('coffee.html', username=session.get('username'))
 
 

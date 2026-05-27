@@ -42,11 +42,13 @@
 
     .main-image-container {
         position: relative;
-        width: 100%;
+        width: 95%;
+        max-width: 100%;
+        margin: 0 auto;
         background: #f9fafb;
         border-radius: 12px;
         overflow: hidden;
-        aspect-ratio: 3 / 4;
+        aspect-ratio: 9 / 16;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -64,9 +66,7 @@
     }
 
     .gallery-thumbnails {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 8px;
+        display: none;
     }
 
     .thumbnail {
@@ -95,6 +95,35 @@
 
     .thumbnail:hover {
         transform: scale(0.95);
+    }
+
+    /* IMAGE DOTS */
+    .image-dots {
+        display: flex;
+        justify-content: center;
+        gap: 6px;
+        margin-top: 16px;
+        padding: 12px 0;
+    }
+
+    .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: rgba(16, 185, 129, 0.3);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid rgba(16, 185, 129, 0.5);
+        padding: 0;
+    }
+
+    .dot.active {
+        background: var(--primary-color);
+        border-color: var(--primary-color);
+    }
+
+    .dot:hover {
+        background: rgba(16, 185, 129, 0.6);
     }
 
     /* INFO SECTION */
@@ -472,6 +501,12 @@
 
     /* TABLET */
     @media (min-width: 768px) {
+        .main-image-container {
+            width: 100%;
+            max-width: none;
+            margin: 0;
+        }
+
         .shirt-detail-grid {
             grid-template-columns: 1fr 1fr;
             gap: 32px;
@@ -540,16 +575,16 @@
         <div class="shirt-detail-grid">
             <!-- Gallery Section -->
             <div class="gallery-section">
-                <div class="main-image-container">
+                <div class="main-image-container" id="imageCarousel">
                     <img id="mainImage" src="{{ shirt.images[0] if shirt.images else 'https://via.placeholder.com/400x500?text=' + shirt.athlete|replace(' ', '+') }}" alt="{{ shirt.athlete }}">
                 </div>
-                <div class="gallery-thumbnails">
+                {% if shirt.images|length > 1 %}
+                <div class="image-dots">
                     {% for image in shirt.images %}
-                    <div class="thumbnail {% if loop.first %}active{% endif %}" onclick="changeMainImage(this)">
-                        <img src="{{ image }}" alt="{{ shirt.athlete }} - Foto {{ loop.index }}">
-                    </div>
+                    <button class="dot {% if loop.first %}active{% endif %}" data-index="{{ loop.index0 }}" onclick="goToImage({{ loop.index0 }})" aria-label="Immagine {{ loop.index }}"></button>
                     {% endfor %}
                 </div>
+                {% endif %}
             </div>
 
             <!-- Info Section -->
@@ -684,16 +719,58 @@
 </section>
 
 <script>
-    function changeMainImage(thumbnail) {
-        // Remove active class from all thumbnails
-        document.querySelectorAll('.thumbnail').forEach(t => t.classList.remove('active'));
-        
-        // Add active class to clicked thumbnail
-        thumbnail.classList.add('active');
-        
-        // Change main image
-        const imageSrc = thumbnail.querySelector('img').src;
-        document.getElementById('mainImage').src = imageSrc;
+    // @ts-nocheck
+    let currentImageIndex = 0;
+    let images = {{ shirt.images|tojson }};
+
+    function goToImage(index) {
+        if (index >= 0 && index < images.length) {
+            currentImageIndex = index;
+            document.getElementById('mainImage').src = images[index];
+            updateDots();
+        }
+    }
+
+    function updateDots() {
+        document.querySelectorAll('.dot').forEach((dot, index) => {
+            dot.classList.toggle('active', index === currentImageIndex);
+        });
+    }
+
+    function nextImage() {
+        let nextIndex = (currentImageIndex + 1) % images.length;
+        goToImage(nextIndex);
+    }
+
+    function prevImage() {
+        let prevIndex = (currentImageIndex - 1 + images.length) % images.length;
+        goToImage(prevIndex);
+    }
+
+    // Swipe support
+    let touchStartX = 0;
+    let touchEndX = 0;
+
+    const carousel = document.getElementById('imageCarousel');
+    if (carousel) {
+        carousel.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        }, false);
+
+        carousel.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        }, false);
+    }
+
+    function handleSwipe() {
+        if (touchStartX - touchEndX > 50) {
+            // Swipe left - next image
+            nextImage();
+        } else if (touchEndX - touchStartX > 50) {
+            // Swipe right - prev image
+            prevImage();
+        }
     }
 
     function avviaAsta() {

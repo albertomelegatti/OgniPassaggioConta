@@ -2,7 +2,6 @@ import os
 import time
 import io
 import json
-from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, current_app
 from psycopg2.extras import RealDictCursor
 from db import get_connection, release_connection
@@ -65,9 +64,6 @@ def dashboard():
     finally:
         release_connection(conn, cur)
     
-    
-    
-    
     return render_template('admin.html', total_shirts=total_shirts, active_auctions=active_auctions, total_users=total_users, total_bids=total_bids)
 
 
@@ -96,13 +92,13 @@ def maglie():
             errors = []
             
             if not titolo or len(titolo) < 2:
-                errors.append("Titolo deve essere almeno 2 caratteri")
+                errors.append("Il titolo deve essere lungo almeno 2 caratteri")
             if not descrizione:
-                errors.append("Descrizione è obbligatoria")
+                errors.append("La descrizione è obbligatoria")
             if not prezzo_base or float(prezzo_base) <= 0:
-                errors.append("Prezzo base deve essere un numero positivo")
+                errors.append("Il prezzo base deve essere un numero positivo")
             if not sport or sport.lower() not in ['calcio', 'pallavolo', 'basket', 'ciclismo', 'sci']:
-                errors.append("Sport selezionato non valido")
+                errors.append("Lo sport selezionato non è valido")
             
             if errors:
                 flash(' | '.join(errors), 'error')

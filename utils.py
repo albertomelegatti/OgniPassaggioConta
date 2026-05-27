@@ -120,14 +120,11 @@ def auction_ended():
             print(f"❌ Email del vincitore non disponibile")
             return {"error": "Email vincitore non disponibile"}, 400
         
-        print("\n📸 Parsing foto...")
         foto_urls = parse_foto_urls(auction_info['foto'], auction_info['titolo'])
-        print(f"✅ {len(foto_urls)} foto trovate")
         
         logo_url = f"{request.host_url.rstrip('/')}/static/images/logo/logo.jpg"
         prima_foto = foto_urls[0] if foto_urls else None
         
-        print("\n📧 Costruendo email...")
         html_body = f"""
         <html>
             <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
@@ -161,9 +158,7 @@ def auction_ended():
             </body>
         </html>
         """
-        print("✅ Email costruita")
         
-        print(f"\n📤 Inviando email a {winner_email}...")
         msg = Message(
             subject="Congratulazioni! Hai vinto l'asta",
             sender=("Ogni Passaggio Conta", current_app.config['MAIL_DEFAULT_SENDER']),
@@ -187,50 +182,3 @@ def auction_ended():
     
     finally:
         release_connection(conn, cur)
-
-
-@email_bp.route("/send-test")
-def send_test_email():
-    """Endpoint di test per verificare che l'email funziona"""
-    
-    print("\n" + "="*60)
-    print("📧 TEST EMAIL AVVIATO")
-    print("="*60)
-    
-    if mail is None:
-        print("❌ ERRORE CRITICO: Email non inizializzata!")
-        return {"error": "Email non configurata"}, 500
-    
-    print("✅ Mail object trovato")
-    
-    try:
-        test_recipient = os.getenv('MAIL_USERNAME')
-        if not test_recipient:
-            print("❌ Email di destinazione non configurata")
-            return {"error": "Email destinazione non trovata"}, 400
-        
-        sender = current_app.config.get('MAIL_DEFAULT_SENDER')
-        print(f"📤 Parametri email:")
-        print(f"   From: {sender}")
-        print(f"   To: {test_recipient}")
-        
-        msg = Message(
-            subject="✅ Email di test - Ogni Passaggio Conta",
-            sender=("Ogni Passaggio Conta", sender),
-            recipients=[test_recipient],
-            body="Funziona! Email inviata da Flask su Render."
-        )
-
-        print("📮 Inviando email...")
-        mail.send(msg)
-        print(f"✅ EMAIL DI TEST INVIATA CON SUCCESSO a {test_recipient}")
-        print("="*60 + "\n")
-        return {"success": True, "message": f"Email di test inviata a {test_recipient}"}, 200
-
-    except Exception as e:
-        import traceback
-        print(f"❌ ERRORE INVIO EMAIL DI TEST: {str(e)}")
-        print("Traceback completo:")
-        traceback.print_exc()
-        print("="*60 + "\n")
-        return {"error": f"Errore invio email: {str(e)}"}, 500
