@@ -39,6 +39,7 @@
             {% if session.get('logged_in') %}
                 <li><span class="side-menu-user">{{ session.get('username') }}</span></li>
                 <li><a href="{{ url_for('logout') }}" class="side-menu-link logout-link">Logout</a></li>
+                <li><a href="{{ url_for('change_password_page') }}" class="side-menu-link change-password-link">Cambia Password</a></li>
             {% else %}
                 <li><a href="{{ url_for('login') }}" class="side-menu-link login-link">Accedi</a></li>
             {% endif %}

@@ -355,6 +355,21 @@ h3 {
     padding-left: 20px;
 }
 
+.side-menu-link.change-password-link {
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+    color: white;
+    margin: 8px 12px;
+    border-radius: 6px;
+    text-align: center;
+    border-left: none;
+}
+
+.side-menu-link.change-password-link:hover {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    border-left: none;
+    padding-left: 20px;
+}
+
 .side-menu-divider {
     height: 1px;
     background: #e5e7eb;

@@ -537,6 +537,140 @@ def signup():
     return render_template('signup.html', username=session.get('username'))
 
 
+@app.route('/change-password', methods=['GET', 'POST'])
+def change_password_page():
+    # Verifica che l'utente sia loggato
+    if not session.get('logged_in'):
+        flash('Devi accedere per cambiare la password', 'error')
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        current_password = request.form.get('current_password', '')
+        new_password = request.form.get('new_password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        
+        # Validazione
+        if not current_password or not new_password or not confirm_password:
+            return render_template('change_password.html', error='Compila tutti i campi', username=session.get('username'))
+        
+        if new_password != confirm_password:
+            return render_template('change_password.html', error='Le password non corrispondono', username=session.get('username'))
+        
+        if len(new_password) < 6:
+            return render_template('change_password.html', error='La password deve avere almeno 6 caratteri', username=session.get('username'))
+        
+        conn = None
+        cur = None
+        
+        try:
+            conn = get_connection()
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            
+            # Recupera la password hash dell'utente
+            cur.execute('''
+                SELECT hash_password FROM utente WHERE username = %s
+            ''', (session.get('username'),))
+            
+            user = cur.fetchone()
+            
+            if not user:
+                return render_template('change_password.html', error='Utente non trovato', username=session.get('username'))
+            
+            # Verifica che la password attuale sia corretta
+            if not check_password_hash(user['hash_password'], current_password):
+                return render_template('change_password.html', error='Password attuale non corretta', username=session.get('username'))
+            
+            # Genera il nuovo hash della password
+            new_password_hash = generate_password_hash(new_password)
+            
+            # Aggiorna la password nel database
+            cur.execute('''
+                UPDATE utente SET hash_password = %s WHERE username = %s
+            ''', (new_password_hash, session.get('username')))
+            
+            conn.commit()
+            
+            flash('Password aggiornata con successo!', 'success')
+            return redirect(url_for('account'))
+            
+        except Exception as e:
+            if conn:
+                try:
+                    conn.rollback()
+                except:
+                    pass
+            print(f"Error during password change: {e}")
+            return render_template('change_password.html', error='Errore durante il cambio password', username=session.get('username'))
+        
+        finally:
+            release_connection(conn, cur)
+    
+    return render_template('change_password.html', username=session.get('username'))
+
+
+@app.route('/change-password-api', methods=['POST'])
+def change_password_api():
+    # Verifica che l'utente sia loggato
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Non sei loggato'}), 401
+    
+    data = request.get_json()
+    current_password = data.get('current_password', '')
+    new_password = data.get('new_password', '')
+    
+    if not current_password or not new_password:
+        return jsonify({'error': 'Compila tutti i campi'}), 400
+    
+    if len(new_password) < 6:
+        return jsonify({'error': 'La password deve avere almeno 6 caratteri'}), 400
+    
+    conn = None
+    cur = None
+    
+    try:
+        conn = get_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Recupera la password hash dell'utente
+        cur.execute('''
+            SELECT hash_password FROM utente WHERE username = %s
+        ''', (session.get('username'),))
+        
+        user = cur.fetchone()
+        
+        if not user:
+            return jsonify({'error': 'Utente non trovato'}), 404
+        
+        # Verifica che la password attuale sia corretta
+        if not check_password_hash(user['hash_password'], current_password):
+            return jsonify({'error': 'Password attuale non corretta'}), 401
+        
+        # Genera il nuovo hash della password
+        new_password_hash = generate_password_hash(new_password)
+        
+        # Aggiorna la password nel database
+        cur.execute('''
+            UPDATE utente SET hash_password = %s WHERE username = %s
+        ''', (new_password_hash, session.get('username')))
+        
+        conn.commit()
+        
+        return jsonify({'success': 'Password aggiornata con successo'}), 200
+        
+    except Exception as e:
+        if conn:
+            try:
+                conn.rollback()
+            except:
+                pass
+        print(f"Error during password change: {e}")
+        return jsonify({'error': 'Errore durante il cambio password'}), 500
+    
+    finally:
+        release_connection(conn, cur)
+
+
+
 
 def formatta_data(data_input):
     # Converte una data (stringa o datetime) in formato 'dd/mm/YYYY HH:MM'.
