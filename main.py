@@ -1,7 +1,8 @@
 import os
 import re
+import time
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, g
 from flask.cli import load_dotenv
 from flask_session import Session
 from flask_sqlalchemy import SQLAlchemy
@@ -59,6 +60,29 @@ init_email(app)
 
 app.register_blueprint(admin_bp)
 app.register_blueprint(email_bp)
+
+
+@app.before_request
+def start_request_timer():
+    g.request_start = time.perf_counter()
+
+
+@app.after_request
+def log_slow_requests(response):
+    start = getattr(g, "request_start", None)
+    if start:
+        duration_ms = (time.perf_counter() - start) * 1000
+        response.headers["X-Response-Time"] = f"{duration_ms:.1f}ms"
+        slow_request_ms = float(os.getenv("SLOW_REQUEST_MS", "1000"))
+        if duration_ms > slow_request_ms:
+            app.logger.warning(
+                "[SLOW REQUEST] %s %s -> %s in %.1fms",
+                request.method,
+                request.path,
+                response.status_code,
+                duration_ms,
+            )
+    return response
 
 # Crea la tabella delle sessioni al primo avvio
 with app.app_context():

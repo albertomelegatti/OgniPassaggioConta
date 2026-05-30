@@ -94,14 +94,25 @@ def get_connection():
     
     retries = 0
 
+    slow_conn_ms = float(os.getenv("SLOW_DB_CONN_MS", "200"))
+    validate_conn = os.getenv("DB_VALIDATE_CONN", "1") == "1"
+
     while retries < max_retries:
         try:
+            start = time.perf_counter()
             conn = pool.getconn()
+            acquire_ms = (time.perf_counter() - start) * 1000
+
             conn.rollback()
             conn.autocommit = False
-            # Verifica che la connessione sia ancora viva
-            with conn.cursor() as cur:
-                cur.execute("SELECT 1;")
+
+            if validate_conn:
+                # Verifica che la connessione sia ancora viva
+                with conn.cursor() as cur:
+                    cur.execute("SELECT 1;")
+
+            if acquire_ms > slow_conn_ms:
+                logger.warning(f"[DB] Slow connection acquire: {acquire_ms:.1f}ms")
             return conn
         
         except OperationalError as e:
