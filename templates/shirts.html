@@ -409,7 +409,7 @@ function filterShirts(filterType) {
 
 // Polling dinamico per le aste
 document.addEventListener('DOMContentLoaded', function() {
-    const pollInterval = 10000; // 10 secondi
+    const pollInterval = 30000; // 30 secondi
     
     // Trova tutte le carte con aste attive
     const astaCards = document.querySelectorAll('.shirt-card[data-asta-id]');
@@ -446,7 +446,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
         }
         
-        // Avvia subito e poi ogni 2 secondi
+        // Avvia subito e poi ogni 30 secondi
         updateAuctionData();
         setInterval(updateAuctionData, pollInterval);
     });

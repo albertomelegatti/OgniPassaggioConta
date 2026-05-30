@@ -792,7 +792,7 @@
         var offerFormElement = document.querySelector('.offer-form[data-asta-id]');
         if (offerFormElement) {
             var astaId = offerFormElement.getAttribute('data-asta-id');
-            var pollInterval = 10000;
+            var pollInterval = 30000; // 30 secondi
             var pollIntervalId = null;
             
             function updateAuctionData() {
@@ -833,7 +833,7 @@
                     });
             }
             
-            // Avvia subito e poi ogni 2 secondi
+            // Avvia subito e poi ogni 30 secondi
             updateAuctionData();
             pollIntervalId = setInterval(updateAuctionData, pollInterval);
         }
