@@ -8,12 +8,37 @@ import os
 mail = None
 
 
-def parse_foto_urls(foto_raw, titolo_maglia=""):
+def add_image_compression(url, quality=60, max_width=800):
+    """Aggiunge parametri di compressione agli URL Supabase.
+    
+    Args:
+        url: URL dell'immagine
+        quality: Qualità JPEG (1-100, default 60)
+        max_width: Larghezza massima (default 800px)
+    
+    Returns:
+        URL con parametri di compressione
+    """
+    if not url or "supabase" not in url:
+        return url
+    
+    # Supabase Image Transformation parameters
+    params = f"?width={max_width}&quality={quality}&resize=contain"
+    
+    # Se l'URL contiene già query params, usa &
+    if "?" in url:
+        return url + f"&width={max_width}&quality={quality}&resize=contain"
+    
+    return url + params
+
+
+def parse_foto_urls(foto_raw, titolo_maglia="", compress=True):
     """Parsa i link foto da formato JSON o CSV. Fallback a placeholder.
     
     Args:
         foto_raw: Stringa JSON array o CSV di URL
         titolo_maglia: Titolo per generare placeholder
+        compress: Se True, comprime le immagini da Supabase
     
     Returns:
         Lista di URL puliti, almeno uno (placeholder se vuoto)
@@ -35,6 +60,10 @@ def parse_foto_urls(foto_raw, titolo_maglia=""):
     
     # Pulisci ogni URL una sola volta (strip + quote removal)
     foto_list = [url.strip().strip('"') for url in foto_list if url]
+    
+    # Comprimi immagini Supabase per velocità
+    if compress:
+        foto_list = [add_image_compression(url) for url in foto_list]
     
     # Se vuoto, usa placeholder
     return foto_list or [get_placeholder_image(titolo_maglia)]

@@ -393,7 +393,7 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def compress_image(file, max_size_mb=2):
+def compress_image(file, max_size_mb=0.5):
     # Comprime un'immagine riducendo qualità o ridimensionando.
     try:
         file.seek(0)  # Reset pointer
@@ -405,7 +405,7 @@ def compress_image(file, max_size_mb=2):
         
         # Salva in memoria con qualità ridotta
         output = io.BytesIO()
-        quality = 85
+        quality = 75
         max_size_bytes = max_size_mb * 1024 * 1024
         
         # Riduci la qualità fino a stare sotto il limite
@@ -422,7 +422,7 @@ def compress_image(file, max_size_mb=2):
             quality -= 5
         
         # Se anche con qualità 10 è ancora grande, ridimensiona
-        img.thumbnail((1920, 1080), Image.Resampling.LANCZOS)
+        img.thumbnail((1200, 800), Image.Resampling.LANCZOS)
         output.seek(0)
         output.truncate(0)
         img.save(output, format='JPEG', quality=10, optimize=True)
