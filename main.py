@@ -241,7 +241,11 @@ def make_offer(asta_id):
         cur.execute('''
             UPDATE asta 
             SET offerta_attuale = %s, vincitore_attuale = %s, 
-                data_fine = (NOW() AT TIME ZONE 'Europe/Rome') + INTERVAL '2 hours'
+                data_fine = CASE 
+                    WHEN data_fine <= (NOW() AT TIME ZONE 'Europe/Rome') + INTERVAL '5 minutes'
+                    THEN data_fine + INTERVAL '10 minutes'
+                    ELSE data_fine
+                END
             WHERE id = %s 
                 AND stato = 'in_corso' 
                 AND (%s >= offerta_attuale + 1)
@@ -265,7 +269,7 @@ def make_offer(asta_id):
             return redirect(request.referrer or url_for('sports'))
         
         conn.commit()
-        flash(f'Offerta di € {offerta:.2f} inviata con successo! Asta estesa di 2 ore.', 'success')
+        flash(f'Offerta di € {offerta:.2f} inviata con successo!', 'success')
         
     except ValueError:
         flash('Importo non valido', 'error')
@@ -318,13 +322,24 @@ def start_auction(maglia_id):
         try:
             cur.execute('''
                 INSERT INTO asta (id_maglia, data_inizio, data_fine, offerta_attuale, stato, vincitore_attuale)
-                VALUES (%s, NOW() AT TIME ZONE 'Europe/Rome', (NOW() AT TIME ZONE 'Europe/Rome') + INTERVAL '2 hours', %s, 'in_corso', %s)
+                VALUES (
+                    %s,
+                    NOW() AT TIME ZONE 'Europe/Rome',
+                    CASE
+                        WHEN (NOW() AT TIME ZONE 'Europe/Rome') < (DATE_TRUNC('day', NOW() AT TIME ZONE 'Europe/Rome') + TIME '20:00')
+                        THEN (DATE_TRUNC('day', NOW() AT TIME ZONE 'Europe/Rome') + TIME '20:00')
+                        ELSE (DATE_TRUNC('day', NOW() AT TIME ZONE 'Europe/Rome') + INTERVAL '1 day' + TIME '20:00')
+                    END,
+                    %s,
+                    'in_corso',
+                    %s
+                )
                 RETURNING id
             ''', (maglia_id, maglia['prezzo_base'], session.get('username')))
             
             result = cur.fetchone()
             conn.commit()
-            flash(f'Asta avviata per "{maglia["titolo"]}" - Scade tra 2 ore', 'success')
+            flash(f'Asta avviata per "{maglia["titolo"]}" - Scade alle 20:00', 'success')
             
         except Exception as e:
             if conn:
