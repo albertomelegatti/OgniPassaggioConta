@@ -34,7 +34,7 @@
                 {% for shirt in shirts %}
                 <a href="{{ url_for('shirt_detail', maglia_id=shirt.maglia_id) }}" class="shirt-card" data-auction="{% if shirt.has_auction %}yes{% else %}no{% endif %}" data-auction-status="{% if shirt.auction_ended %}ended{% else %}active{% endif %}" {% if shirt.has_auction %}data-asta-id="{{ shirt.id }}"{% endif %}>
                     <div class="shirt-image-wrapper">
-                        <img src="{{ shirt.image }}" alt="{{ shirt.athlete }}" class="shirt-image">
+                        <img src="{{ shirt.image }}" alt="{{ shirt.athlete }}" class="shirt-image" loading="lazy">
                         {% if shirt.has_auction %}
                             {% if shirt.auction_ended %}
                             <span class="auction-badge auction-badge-ended auction-badge-{{ shirt.id }}">✓ Asta Terminata</span>

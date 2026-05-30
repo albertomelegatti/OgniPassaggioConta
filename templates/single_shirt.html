@@ -576,7 +576,7 @@
             <!-- Gallery Section -->
             <div class="gallery-section">
                 <div class="main-image-container" id="imageCarousel">
-                    <img id="mainImage" src="{{ shirt.images[0] if shirt.images else 'https://via.placeholder.com/400x500?text=' + shirt.athlete|replace(' ', '+') }}" alt="{{ shirt.athlete }}">
+                    <img id="mainImage" src="{{ shirt.images[0] if shirt.images else 'https://via.placeholder.com/400x500?text=' + shirt.athlete|replace(' ', '+') }}" alt="{{ shirt.athlete }}" loading="lazy">
                 </div>
                 {% if shirt.images|length > 1 %}
                 <div class="image-dots">
