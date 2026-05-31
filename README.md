@@ -35,7 +35,7 @@ Una piattaforma web creata per una giornata di beneficenza. Gestisce sign-up e l
 
 ### DevOps & Deployment
 - **Server Application**: Gunicorn (120s timeout, 8 sync worker, 500 max request)
-- **Procfile**: Supporto Heroku e Render deployment
+- **Procfile**: Supporto Render deployment
 - **Gestione Dipendenze**: pip + requirements.txt
 - **Variabili d'Ambiente**: python-dotenv per configurazione
 
@@ -201,17 +201,6 @@ Una piattaforma web creata per una giornata di beneficenza. Gestisce sign-up e l
 3. **Deploy**
    - Render auto-deploya su git push
    - Procfile specifica il comando di avvio
-
-### Deployment su Heroku (Legacy)
-
-```bash
-heroku login
-heroku create nome-app
-heroku config:set DATABASE_URL=postgresql://...
-heroku config:set SECRET_KEY=your-secret-key
-git push heroku main
-heroku logs --tail
-```
 
 ## Variabili d'Ambiente Richieste
 
