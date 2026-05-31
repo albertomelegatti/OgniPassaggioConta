@@ -1,6 +1,6 @@
 # Ogni Passaggio Conta
 
-Una piattaforma web completa per la gestione e catalogazione di prodotti con sistema di autenticazione, amministrazione e upload di contenuti multimediali. Interfaccia responsive con design moderno e gestione robusta dei dati attraverso PostgreSQL.
+Una piattaforma web creata per una giornata di beneficenza. Gestisce sign-up e login degli utenti e implementa un sistema di aste di maglie sportive. Interfaccia responsive con design moderno e gestione robusta dei dati attraverso PostgreSQL.
 
 [https://ognipassaggioconta.onrender.com/](https://ognipassaggioconta.onrender.com/)
 
