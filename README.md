@@ -232,7 +232,6 @@ Una piattaforma web creata per una giornata di beneficenza. Gestisce sign-up e l
 - Maglie (shirts)
 - Scarpe (shoes)
 - Articoli sportivi (sports)
-- Bevande (coffee)
 
 ## Guida Amministratore
 
@@ -243,8 +242,7 @@ Una piattaforma web creata per una giornata di beneficenza. Gestisce sign-up e l
 
 ### Gestione Utenti
 - Visualizzare lista utenti completa
-- Modificare dati utente
-- Eliminare account
+- Concedere o rimuovere permessi di aadmin
 
 ### Gestione Prodotti
 - Aggiungi nuova maglia/articolo
@@ -255,27 +253,9 @@ Una piattaforma web creata per una giornata di beneficenza. Gestisce sign-up e l
 ## Database Schema
 
 L'applicazione utilizza PostgreSQL con le seguenti tabelle principali:
-- `users` - Gestione account utenti
-- `products` - Catalogo prodotti
-- `categories` - Categorie prodotti
+- `utente` - Gestione account utenti
+- `maglia` - Catalogo maglie
 - `sessions` - Sessioni persistenti Flask
-
-## Troubleshooting
-
-### Errore connessione database
-- Verificare DATABASE_URL in variabili d'ambiente
-- Controllare credenziali PostgreSQL
-- Validare IP whitelist su Supabase
-
-### Errore upload immagini
-- Verificare permessi directory `static/uploads`
-- Controllare limiti dimensione file
-- Validare formato immagine
-
-### Errore email
-- Verificare credenziali SMTP
-- Controllare porta SMTP (587 per TLS)
-- Validare app-specific password se usi Gmail
 
 ## Licenza
 
