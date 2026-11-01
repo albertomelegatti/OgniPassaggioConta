@@ -682,6 +682,7 @@
                         {% if session.get('logged_in') %}
                         <div class="offer-form" {% if shirt.id %}data-asta-id="{{ shirt.id }}"{% endif %}>
                             <form id="offerForm" method="POST" action="{{ url_for('make_offer', asta_id=shirt.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <h3 class="section-title">Fai un'Offerta</h3>
                                 <div class="form-group">
                                     <label class="form-label">Offerta (€)</label>
@@ -782,7 +783,13 @@
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = '{{ url_for("start_auction", maglia_id=shirt.maglia_id) }}';
-        
+
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrf_token';
+        csrfInput.value = document.querySelector('meta[name="csrf-token"]').content;
+        form.appendChild(csrfInput);
+
         document.body.appendChild(form);
         form.submit();
     }

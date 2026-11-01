@@ -214,6 +214,7 @@ Una piattaforma web creata per una giornata di beneficenza. Gestisce sign-up e l
 | `MAIL_PASSWORD` | Password app email | No |
 | `MAIL_USE_TLS` | Abilita TLS per email | No |
 | `FLASK_ENV` | Ambiente (development/production) | No |
+| `REDIS_URL` | Connection string Redis per le sessioni (se assente, le sessioni restano su Postgres come oggi) | No |
 
 ## Struttura Dati Chiave
 

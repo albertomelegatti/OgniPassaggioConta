@@ -58,7 +58,7 @@ def dashboard():
         total_users = cur.fetchone()['count']
     
     except Exception as e:
-        print(f"Error in admin dashboard: {e}")
+        current_app.logger.exception("Error in admin dashboard")
         flash(f'Errore: {str(e)}', 'error')
         
     finally:
@@ -162,7 +162,7 @@ def maglie():
             except Exception as e:
                 if conn:
                     conn.rollback()
-                print(f"Error inserting maglia: {e}")
+                current_app.logger.exception("Error inserting maglia")
                 flash(f'Errore nell\'aggiunta della maglia: {str(e)}', 'error')
                 return redirect(url_for('admin.maglie'))
         
@@ -196,7 +196,7 @@ def maglie():
                 conn.rollback()
             except:
                 pass
-        print(f"Error in admin maglie: {e}")
+        current_app.logger.exception("Error in admin maglie")
         flash(f'Errore: {str(e)}', 'error')
         maglie = []
     
@@ -255,7 +255,7 @@ def delete_maglia(maglia_id):
                         if os.path.exists(filepath):
                             os.remove(filepath)
                 except Exception as e:
-                    print(f"Error deleting file {foto_path}: {e}")
+                    current_app.logger.exception("Error deleting file %s", foto_path)
         
         # Elimina tutte le aste associate a questa maglia (vincolo foreign key)
         cur.execute('DELETE FROM asta WHERE id_maglia = %s', (maglia_id,))
@@ -272,7 +272,7 @@ def delete_maglia(maglia_id):
                 conn.rollback()
             except:
                 pass
-        print(f"Error deleting maglia: {e}")
+        current_app.logger.exception("Error deleting maglia")
         return jsonify({'error': str(e)}), 500
     
     finally:
@@ -347,7 +347,7 @@ def users():
             except Exception as e:
                 if conn:
                     conn.rollback()
-                print(f"Error updating user permission: {e}")
+                current_app.logger.exception("Error updating user permission")
                 flash(f'Errore durante l\'aggiornamento: {str(e)}', 'error')
             
             return redirect(url_for('admin.users'))
@@ -429,8 +429,8 @@ def compress_image(file, max_size_mb=0.5):
         output.seek(0)
         return output
         
-    except Exception as e:
-        print(f"❌ Errore compressione: {e}")
+    except Exception:
+        current_app.logger.exception("Errore compressione immagine")
         return None
 
 
@@ -460,8 +460,9 @@ def upload_to_supabase(file, folder="maglie"):
         public_url = supabase.storage.from_(supabase_bucket).get_public_url(file_path)
         
         return public_url
-    
-    except Exception as e:
+
+    except Exception:
+        current_app.logger.exception("Errore upload immagine su Supabase")
         return None
 
 
