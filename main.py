@@ -12,7 +12,7 @@ from psycopg2.extras import RealDictCursor
 from db import get_connection, release_connection, init_pool
 from werkzeug.security import generate_password_hash, check_password_hash
 from admin import admin_bp
-from utils import email_bp, init_email, parse_foto_urls
+from utils import email_bp, init_email, parse_foto_urls, get_paypal_payment_link
 
 load_dotenv()
 init_pool()
@@ -223,6 +223,13 @@ def shirt_detail(maglia_id):
             'images': parse_foto_urls(shirt_row['foto'], shirt_row['titolo']),
             'auction_ended': shirt_row['id'] is not None and shirt_row['stato'] == 'conclusa'
         }
+
+        is_winner = (
+            shirt['auction_ended']
+            and shirt['current_winner'] is not None
+            and shirt['current_winner'] == session.get('username')
+        )
+        shirt['paypal_link'] = get_paypal_payment_link(shirt['current_price']) if is_winner else None
         
     except Exception:
         app.logger.exception("Errore nel caricamento della maglia maglia_id=%s", maglia_id)
@@ -522,7 +529,8 @@ def account():
                 'final_price': to_float(auction['offerta_attuale']),
                 'end_time': formatta_data(auction['data_fine']),
                 'sport': auction['sport'],
-                'image': foto_list[0]  # Prima foto
+                'image': foto_list[0],  # Prima foto
+                'paypal_link': get_paypal_payment_link(auction['offerta_attuale'])
             })
         
     except Exception:

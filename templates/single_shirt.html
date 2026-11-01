@@ -650,9 +650,12 @@
                             <div>
                                 <h3 class="winner-message-title">Complimenti! Hai vinto l'asta!</h3>
                                 <p class="winner-message-text">
-                                    Controlla la <strong>cartella spam</strong> della tua casella di posta per il messaggio di conferma della vittoria. 
+                                    Controlla la <strong>cartella spam</strong> della tua casella di posta per il messaggio di conferma della vittoria.
                                     Una volta trovata, <strong>segnala l'email come non spam</strong> per assicurarti di ricevere futuri aggiornamenti.
                                 </p>
+                                {% if shirt.paypal_link %}
+                                <a href="{{ shirt.paypal_link }}" target="_blank" rel="noopener" class="btn-primary" style="margin-top: 16px;"><i class="bi bi-paypal" style="margin-right: 8px;"></i>Paga con PayPal</a>
+                                {% endif %}
                             </div>
                         </div>
                     </div>

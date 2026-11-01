@@ -74,6 +74,20 @@ def get_placeholder_image(titolo_maglia):
     return f'https://via.placeholder.com/300x400?text={titolo_maglia.replace(" ", "+")}'
 
 
+def get_paypal_payment_link(amount):
+    """Genera un link PayPal.me per pagare l'importo indicato.
+
+    L'account di destinazione e' deciso dall'amministratore tramite la
+    variabile d'ambiente PAYPAL_ME_USERNAME (lo username scelto su
+    paypal.me/<username>). Se non e' impostata, ritorna None e il bottone
+    di pagamento viene semplicemente omesso ovunque venga usato.
+    """
+    username = os.getenv("PAYPAL_ME_USERNAME")
+    if not username or amount is None:
+        return None
+    return f"https://paypal.me/{username}/{float(amount):.2f}EUR"
+
+
 # EMAIL BLUEPRINT
 
 email_bp = Blueprint('email', __name__)
@@ -150,9 +164,10 @@ def auction_ended():
             return {"error": "Email vincitore non disponibile"}, 400
         
         foto_urls = parse_foto_urls(auction_info['foto'], auction_info['titolo'])
-        
+
         logo_url = f"{request.host_url.rstrip('/')}/static/images/logo/logo.jpg"
         prima_foto = foto_urls[0] if foto_urls else None
+        paypal_link = get_paypal_payment_link(auction_info['offerta_attuale'])
         
         html_body = f"""
         <html>
@@ -176,9 +191,11 @@ def auction_ended():
                         <li><strong>Descrizione:</strong> {auction_info['descrizione']}</li>
                         <li><strong>Offerta finale:</strong> €{auction_info['offerta_attuale']}</li>
                     </ul>
-                    
+
+                    {f'<div style="text-align: center; margin: 24px 0;"><a href="{paypal_link}" style="background-color: #0070ba; color: #ffffff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">Paga con PayPal</a></div>' if paypal_link else ''}
+
                     {f'<div style="margin: 20px 0;"><img src="{prima_foto}" alt="{auction_info["titolo"]}" style="max-width: 300px; border-radius: 5px;"></div>' if prima_foto else ''}
-                    
+
                     <p style="margin-top: 30px; text-align: center; color: #7f8c8d;">
                         <strong>Grazie per aver partecipato!</strong><br>
                         Ogni Passaggio Conta
