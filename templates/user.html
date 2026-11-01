@@ -29,31 +29,36 @@
 
                 <div class="auctions-grid">
                     {% for auction in won_auctions %}
-                    <a href="{{ url_for('shirt_detail', maglia_id=auction.maglia_id) }}" class="auction-card">
-                        <div class="auction-image-wrapper">
-                            <img src="{{ auction.image }}" alt="{{ auction.title }}" class="auction-image">
-                            <span class="victory-badge">Vinta!</span>
-                        </div>
-                        <div class="auction-info">
-                            <h3 class="auction-title">{{ auction.title }}</h3>
-                            <p class="auction-description">{{ auction.description[:50] }}{% if auction.description|length > 50 %}...{% endif %}</p>
-                            
-                            <div class="auction-details">
-                                <div class="detail-row">
-                                    <span class="detail-label">Sport</span>
-                                    <span class="detail-value">{{ auction.sport|title }}</span>
-                                </div>
-                                <div class="detail-row">
-                                    <span class="detail-label">Prezzo Finale</span>
-                                    <span class="detail-value price">€ {{ "%.2f"|format(auction.final_price) }}</span>
-                                </div>
-                                <div class="detail-row">
-                                    <span class="detail-label">Data Asta</span>
-                                    <span class="detail-value">{{ auction.end_time }}</span>
+                    <div class="auction-card">
+                        <a href="{{ url_for('shirt_detail', maglia_id=auction.maglia_id) }}" class="auction-card-link">
+                            <div class="auction-image-wrapper">
+                                <img src="{{ auction.image }}" alt="{{ auction.title }}" class="auction-image">
+                                <span class="victory-badge">Vinta!</span>
+                            </div>
+                            <div class="auction-info">
+                                <h3 class="auction-title">{{ auction.title }}</h3>
+                                <p class="auction-description">{{ auction.description[:50] }}{% if auction.description|length > 50 %}...{% endif %}</p>
+
+                                <div class="auction-details">
+                                    <div class="detail-row">
+                                        <span class="detail-label">Sport</span>
+                                        <span class="detail-value">{{ auction.sport|title }}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Prezzo Finale</span>
+                                        <span class="detail-value price">€ {{ "%.2f"|format(auction.final_price) }}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Data Asta</span>
+                                        <span class="detail-value">{{ auction.end_time }}</span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </a>
+                        </a>
+                        {% if auction.paypal_link %}
+                        <a href="{{ auction.paypal_link }}" target="_blank" rel="noopener" class="btn-paypal">Paga con PayPal</a>
+                        {% endif %}
+                    </div>
                     {% endfor %}
                 </div>
             {% else %}
@@ -190,6 +195,30 @@
     transform: translateY(-6px);
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
     border-color: var(--primary-color);
+}
+
+.auction-card-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+}
+
+.btn-paypal {
+    display: block;
+    text-align: center;
+    margin: 0 16px 16px 16px;
+    padding: 10px 16px;
+    background: #0070ba;
+    color: white;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: background 0.3s ease;
+}
+
+.btn-paypal:hover {
+    background: #005ea6;
 }
 
 .auction-image-wrapper {
