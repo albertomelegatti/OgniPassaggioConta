@@ -146,7 +146,7 @@ def auction_ended():
         # Verifica che il vincitore abbia un'email
         winner_email = auction_info.get('email')
         if not winner_email:
-            print(f"❌ Email del vincitore non disponibile")
+            current_app.logger.warning("Email del vincitore non disponibile per auction_id=%s", auction_id)
             return {"error": "Email vincitore non disponibile"}, 400
         
         foto_urls = parse_foto_urls(auction_info['foto'], auction_info['titolo'])
@@ -196,17 +196,12 @@ def auction_ended():
         )
         
         mail.send(msg)
-        print(f"✅ EMAIL INVIATA CON SUCCESSO a {winner_email}")
-        print("="*60 + "\n")
-        
+        current_app.logger.info("Email inviata con successo a %s per auction_id=%s", winner_email, auction_id)
+
         return {"success": True, "message": "Email inviata correttamente"}, 200
-        
+
     except Exception as e:
-        import traceback
-        print(f"\n❌ ERRORE INVIO EMAIL: {str(e)}")
-        print("Traceback completo:")
-        traceback.print_exc()
-        print("="*60 + "\n")
+        current_app.logger.exception("Errore invio email per auction_id=%s", auction_id)
         return {"error": f"Errore invio email: {str(e)}"}, 500
     
     finally:

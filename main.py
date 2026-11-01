@@ -6,6 +6,8 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from flask.cli import load_dotenv
 from flask_session import Session
 from flask_sqlalchemy import SQLAlchemy
+from flask_wtf import CSRFProtect
+from whitenoise import WhiteNoise
 from psycopg2.extras import RealDictCursor
 from db import get_connection, release_connection, init_pool
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -20,26 +22,49 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_FOLDER = os.path.join(BASE_DIR, 'static')
 
 app = Flask(__name__, static_folder=STATIC_FOLDER)
-app.secret_key = os.getenv("SECRET_KEY", "chiave_segreta_default_per_sviluppo")
+app.wsgi_app = WhiteNoise(app.wsgi_app, root=STATIC_FOLDER, prefix="static/")
 
 is_production = bool(os.getenv("RENDER_DEPLOYMENT_ID"))
+
+secret_key = os.getenv("SECRET_KEY")
+if not secret_key:
+    if is_production:
+        raise RuntimeError(
+            "SECRET_KEY non impostata: obbligatoria in produzione (Render). "
+            "Imposta la variabile d'ambiente SECRET_KEY prima di avviare l'app."
+        )
+    secret_key = "chiave_segreta_default_per_sviluppo"
+app.secret_key = secret_key
 
 db_url = os.getenv("DATABASE_URL")
 if db_url and db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
+if db_url and db_url.startswith("postgresql://"):
+    # Forza esplicitamente il driver psycopg2 (quello usato anche da db.py):
+    # senza questo, SQLAlchemy puo' auto-selezionare il driver psycopg (v3),
+    # non installato, e far crashare l'app all'avvio.
+    db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_size': 15,
+    'pool_size': 5,
+    'max_overflow': 2,
     'pool_recycle': 3600,
     'pool_pre_ping': True,
+    'pool_timeout': 10,
 }
 
 db = SQLAlchemy(app)
 
-app.config['SESSION_TYPE'] = 'sqlalchemy'
-app.config['SESSION_SQLALCHEMY'] = db
+redis_url = os.getenv("REDIS_URL")
+if redis_url:
+    import redis
+    app.config['SESSION_TYPE'] = 'redis'
+    app.config['SESSION_REDIS'] = redis.from_url(redis_url)
+else:
+    app.config['SESSION_TYPE'] = 'sqlalchemy'
+    app.config['SESSION_SQLALCHEMY'] = db
 app.config['SESSION_PERMANENT'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = 3600 * 24 * 30  # 30 giorni
 app.config['SESSION_COOKIE_SECURE'] = True
@@ -60,6 +85,11 @@ init_email(app)
 
 app.register_blueprint(admin_bp)
 app.register_blueprint(email_bp)
+
+csrf = CSRFProtect(app)
+# Il blueprint email espone un webhook chiamato da Supabase (server-to-server,
+# nessuna sessione browser): non ha senso applicargli la protezione CSRF.
+csrf.exempt(email_bp)
 
 
 @app.before_request
@@ -135,8 +165,8 @@ def shirts(sport):
                 'id': shirt['id'],
                 'maglia_id': shirt['maglia_id'],
                 'title': shirt['titolo'],
-                'base_price': shirt['prezzo_base'],
-                'current_price': shirt['offerta_attuale'],
+                'base_price': to_float(shirt['prezzo_base']),
+                'current_price': to_float(shirt['offerta_attuale']),
                 'end_time': formatta_data(shirt['data_fine']),
                 'current_winner': shirt['vincitore_attuale'],
                 'has_auction': shirt['id'] is not None,
@@ -145,11 +175,11 @@ def shirts(sport):
             })
             
         
-    except Exception as e:
-        pass
+    except Exception:
+        app.logger.exception("Errore nel caricamento delle maglie per sport=%s", sport)
     finally:
         release_connection(conn, cur)
-    
+
     return render_template('shirts.html', sport=sport, shirts=shirts, username=session.get('username'))
 
 
@@ -184,8 +214,8 @@ def shirt_detail(maglia_id):
             'id': shirt_row['id'],
             'athlete': shirt_row['titolo'],
             'description': shirt_row['descrizione'],
-            'base_price': shirt_row['prezzo_base'],
-            'current_price': shirt_row['offerta_attuale'],
+            'base_price': to_float(shirt_row['prezzo_base']),
+            'current_price': to_float(shirt_row['offerta_attuale']),
             'end_time': formatta_data(shirt_row['data_fine']),
             'current_winner': shirt_row['vincitore_attuale'],
             'has_auction': shirt_row['id'] is not None,
@@ -194,10 +224,11 @@ def shirt_detail(maglia_id):
             'auction_ended': shirt_row['id'] is not None and shirt_row['stato'] == 'conclusa'
         }
         
-    except Exception as e:
+    except Exception:
+        app.logger.exception("Errore nel caricamento della maglia maglia_id=%s", maglia_id)
         flash('Errore nel caricamento della maglia', 'error')
         return redirect(url_for('sports'))
-        
+
     finally:
         release_connection(conn, cur)
     
@@ -235,7 +266,8 @@ def get_auction_data(asta_id):
             'stato': asta['stato']
         })
         
-    except Exception as e:
+    except Exception:
+        app.logger.exception("Errore nel recupero dati asta_id=%s", asta_id)
         return jsonify({'error': 'Errore nel recupero dati'}), 500
     finally:
         release_connection(conn, cur)
@@ -297,7 +329,8 @@ def make_offer(asta_id):
         
     except ValueError:
         flash('Importo non valido', 'error')
-    except Exception as e:
+    except Exception:
+        app.logger.exception("Errore durante l'invio dell'offerta asta_id=%s", asta_id)
         if conn:
             try:
                 conn.rollback()
@@ -371,13 +404,14 @@ def start_auction(maglia_id):
             raise
         
     except Exception as e:
+        app.logger.exception("Errore durante l'avvio dell'asta maglia_id=%s", maglia_id)
         if conn:
             try:
                 conn.rollback()
             except:
                 pass
         flash(f'Errore durante l\'avvio dell\'asta: {str(e)}', 'error')
-    
+
     finally:
         release_connection(conn, cur)
     
@@ -430,9 +464,10 @@ def login():
             else:
                 flash('Credenziali non valide. Riprova.', 'error')
         
-        except Exception as e:
+        except Exception:
+            app.logger.exception("Errore di connessione al database durante il login")
             flash(' Errore di connessione al database.', 'error')
-            
+
         finally:
             release_connection(conn, cur)
         
@@ -484,15 +519,16 @@ def account():
                 'maglia_id': auction['maglia_id'],
                 'title': auction['titolo'],
                 'description': auction['descrizione'],
-                'final_price': auction['offerta_attuale'],
+                'final_price': to_float(auction['offerta_attuale']),
                 'end_time': formatta_data(auction['data_fine']),
                 'sport': auction['sport'],
                 'image': foto_list[0]  # Prima foto
             })
         
-    except Exception as e:
+    except Exception:
+        app.logger.exception("Errore nel caricamento delle aste vinte per username=%s", session.get('username'))
         flash('Errore nel caricamento delle aste vinte', 'error')
-        
+
     finally:
         release_connection(conn, cur)
     
@@ -566,7 +602,7 @@ def signup():
                     conn.rollback()
                 except:
                     pass
-            print(f"Error during signup: {e}")
+            app.logger.exception("Error during signup")
             flash('Errore durante la registrazione. Riprova più tardi.', 'error')
             return render_template('signup.html', username=session.get('username'))
         
@@ -638,7 +674,7 @@ def change_password_page():
                     conn.rollback()
                 except:
                     pass
-            print(f"Error during password change: {e}")
+            app.logger.exception("Error during password change")
             return render_template('change_password.html', error='Errore durante il cambio password', username=session.get('username'))
         
         finally:
@@ -648,6 +684,7 @@ def change_password_page():
 
 
 @app.route('/change-password-api', methods=['POST'])
+@csrf.exempt
 def change_password_api():
     # Verifica che l'utente sia loggato
     if not session.get('logged_in'):
@@ -702,13 +739,19 @@ def change_password_api():
                 conn.rollback()
             except:
                 pass
-        print(f"Error during password change: {e}")
+        app.logger.exception("Error during password change (API)")
         return jsonify({'error': 'Errore durante il cambio password'}), 500
     
     finally:
         release_connection(conn, cur)
 
 
+
+
+def to_float(value):
+    # Converte Decimal/None in float, cosi' i template possono fare aritmetica
+    # (es. current_price + 1.00) senza il TypeError Decimal+float di Python.
+    return float(value) if value is not None else None
 
 
 def formatta_data(data_input):

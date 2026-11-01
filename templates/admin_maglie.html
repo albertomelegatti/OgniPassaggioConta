@@ -17,6 +17,7 @@
             <div id="formSection" class="form-section form-section-hidden">
                 <h2>Aggiungi Nuova Maglia</h2>
                 <form method="POST" enctype="multipart/form-data" class="maglia-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="form-group">
                         <label for="titolo">Titolo Maglia *</label>
                         <input type="text" id="titolo" name="titolo" required placeholder="Es. Maglia AC Milan 1999" maxlength="100">
@@ -636,7 +637,8 @@
                         const response = await fetch(`/admin/maglie/${magliaId}`, {
                             method: 'DELETE',
                             headers: {
-                                'Content-Type': 'application/json'
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
                             }
                         });
 

@@ -52,7 +52,7 @@ def init_pool():
         logger.info("🔄 Creating ThreadedConnectionPool...")
         pool = psycopg2.pool.ThreadedConnectionPool(
             minconn = 2,
-            maxconn = 10,
+            maxconn = 6,
             **{k: v for k, v in {
                 "user": result.username,
                 "password": result.password,

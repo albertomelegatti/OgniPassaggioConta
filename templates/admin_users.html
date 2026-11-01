@@ -50,6 +50,7 @@
                                         {% else %}
                                             {% if utente.permessi == 'base' %}
                                                 <form method="POST" class="action-form" style="display: inline;">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <input type="hidden" name="action" value="grant">
                                                     <input type="hidden" name="username" value="{{ utente.username }}">
                                                     <button type="submit" class="btn-grant" title="Concedi permesso admin">
@@ -58,6 +59,7 @@
                                                 </form>
                                             {% else %}
                                                 <form method="POST" class="action-form" style="display: inline;">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <input type="hidden" name="action" value="revoke">
                                                     <input type="hidden" name="username" value="{{ utente.username }}">
                                                     <button type="submit" class="btn-revoke" title="Revoca permesso admin" onclick="return confirm('Sei sicuro di voler revocare i permessi admin a {{ utente.username }}?')">
